@@ -9,7 +9,9 @@ FROM node:${NODE_VERSION} AS deps
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
+# --ignore-scripts: ข้าม postinstall (prisma generate) ตรงนี้เพราะยังไม่มี prisma/schema.prisma
+# (ยังไม่ COPY source จนกว่าจะถึง build stage) -- build stage รัน prisma generate เองอยู่แล้วด้านล่าง
+RUN npm ci --no-audit --no-fund --ignore-scripts
 
 # 2) build (prisma generate + next build) — ใช้เป็น image สำหรับ migrate/สคริปต์ดูแลระบบด้วย
 FROM deps AS build
