@@ -1,0 +1,323 @@
+=== รวมแชท: ทดสอบ Docker บนเครื่อง (Tue 20 Oct 2026 23:26:24 +07) ===
+Docker 29.5.3 (arm64)
+
+--- 1) build images (ครั้งแรกใช้เวลา 3–10 นาที) ---
+ Image hospchat-local-migrate Building 
+ Image hospchat-local-app Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.05kB done
+#1 DONE 0.0s
+
+#2 [migrate internal] load build definition from Dockerfile
+#2 transferring dockerfile: 2.09kB 0.0s done
+#2 DONE 0.0s
+
+#3 [migrate] resolve image config for docker-image://docker.io/docker/dockerfile:1.7
+#3 DONE 2.2s
+
+#4 [app] docker-image://docker.io/docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e
+#4 resolve docker.io/docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e 0.0s done
+#4 CACHED
+
+#5 [migrate internal] load build definition from Dockerfile
+#5 transferring dockerfile: 2.09kB done
+#5 DONE 0.0s
+
+#6 [app internal] load build definition from Dockerfile
+#6 transferring dockerfile: 2.09kB done
+#6 DONE 0.0s
+
+#7 [app internal] load metadata for docker.io/library/node:22-bookworm-slim
+#7 DONE 1.7s
+
+#8 [app internal] load .dockerignore
+#8 transferring context: 149B done
+#8 DONE 0.0s
+
+#9 [migrate internal] load .dockerignore
+#9 transferring context: 149B done
+#9 DONE 0.0s
+
+#10 [app deps 1/5] FROM docker.io/library/node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
+#10 resolve docker.io/library/node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392 done
+#10 DONE 0.0s
+
+#11 [app internal] load build context
+#11 transferring context: 12.84kB 0.0s done
+#11 DONE 0.0s
+
+#12 [migrate internal] load build context
+#12 transferring context: 12.84kB 0.0s done
+#12 DONE 0.0s
+
+#13 [app deps 3/5] RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+#13 CACHED
+
+#14 [app deps 4/5] COPY package.json package-lock.json ./
+#14 CACHED
+
+#15 [app deps 5/5] RUN npm ci --no-audit --no-fund
+#15 CACHED
+
+#16 [app deps 2/5] WORKDIR /app
+#16 CACHED
+
+#17 [migrate build 1/3] WORKDIR /app
+#17 CACHED
+
+#18 [migrate build 2/3] COPY . .
+#18 DONE 0.4s
+
+#19 [migrate build 3/3] RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" npx prisma generate  && DATABASE_URL="postgresql://build:build@localhost:5432/build" npx prisma version >/dev/null  && npm run build
+#19 4.082 Loaded Prisma config from prisma.config.ts.
+#19 4.082 
+#19 4.681 Prisma schema loaded from prisma/schema.prisma.
+#19 5.320 
+#19 5.320 ✔ Generated Prisma Client (7.10.1) to ./src/generated/prisma in 258ms
+#19 5.320 
+#19 5.883 Loaded Prisma config from prisma.config.ts.
+#19 5.883 
+#19 6.306 Prisma schema loaded from prisma/schema.prisma.
+#19 6.310 ┌─────────────────────────────────────────────────────────┐
+#19 6.310 │  Update available 7.10.1 -> 8.0.0-rc.23                 │
+#19 6.310 │                                                         │
+#19 6.310 │  This is a major update - please follow the guide at    │
+#19 6.310 │  https://pris.ly/d/major-version-upgrade                │
+#19 6.310 │                                                         │
+#19 6.310 │  Run the following to update                            │
+#19 6.310 │    npm i --save-dev prisma@latest                       │
+#19 6.310 │    npm i @prisma/client@latest                          │
+#19 6.310 └─────────────────────────────────────────────────────────┘
+#19 6.402 
+#19 6.402 > hospital-chat@0.1.0 build
+#19 6.402 > next build
+#19 6.402 
+#19 7.265    ▲ Next.js 15.5.28
+#19 7.265 
+#19 7.304    Creating an optimized production build ...
+#19 21.87  ✓ Compiled successfully in 12.5s
+#19 21.87    Linting and checking validity of types ...
+#19 30.85    Collecting page data ...
+#19 33.41    Generating static pages (0/16) ...
+#19 33.87    Generating static pages (4/16) 
+#19 33.91    Generating static pages (8/16) 
+#19 33.91    Generating static pages (12/16) 
+#19 33.99  ✓ Generating static pages (16/16)
+#19 34.90    Finalizing page optimization ...
+#19 34.90    Collecting build traces ...
+#19 45.13 
+#19 45.14 Route (app)                                     Size  First Load JS
+#19 45.14 ┌ ○ /                                          267 B         103 kB
+#19 45.14 ├ ○ /_not-found                                996 B         104 kB
+#19 45.14 ├ ƒ /api/appointments                          267 B         103 kB
+#19 45.14 ├ ƒ /api/appointments/[id]                     267 B         103 kB
+#19 45.14 ├ ƒ /api/audit                                 267 B         103 kB
+#19 45.14 ├ ƒ /api/auth/config                           267 B         103 kB
+#19 45.14 ├ ƒ /api/auth/login                            267 B         103 kB
+#19 45.14 ├ ƒ /api/auth/logout                           267 B         103 kB
+#19 45.14 ├ ƒ /api/auth/me                               267 B         103 kB
+#19 45.14 ├ ƒ /api/auth/password                         267 B         103 kB
+#19 45.14 ├ ƒ /api/auto-replies                          267 B         103 kB
+#19 45.14 ├ ƒ /api/auto-replies/[id]                     267 B         103 kB
+#19 45.14 ├ ƒ /api/broadcasts                            267 B         103 kB
+#19 45.14 ├ ƒ /api/broadcasts/[id]/cancel                267 B         103 kB
+#19 45.14 ├ ƒ /api/broadcasts/estimate                   267 B         103 kB
+#19 45.14 ├ ƒ /api/cases/[id]                            267 B         103 kB
+#19 45.14 ├ ƒ /api/channels                              267 B         103 kB
+#19 45.14 ├ ƒ /api/channels/[id]                         267 B         103 kB
+#19 45.14 ├ ƒ /api/channels/[id]/poll                    267 B         103 kB
+#19 45.14 ├ ƒ /api/conversations/[id]                    267 B         103 kB
+#19 45.14 ├ ƒ /api/conversations/[id]/messages           267 B         103 kB
+#19 45.14 ├ ƒ /api/dashboard                             267 B         103 kB
+#19 45.14 ├ ƒ /api/departments                           267 B         103 kB
+#19 45.14 ├ ƒ /api/departments/[id]                      267 B         103 kB
+#19 45.14 ├ ƒ /api/events                                267 B         103 kB
+#19 45.14 ├ ƒ /api/health                                267 B         103 kB
+#19 45.14 ├ ƒ /api/inbox                                 267 B         103 kB
+#19 45.14 ├ ƒ /api/media/line/[channelId]/[messageId]    267 B         103 kB
+#19 45.14 ├ ƒ /api/patients                              267 B         103 kB
+#19 45.14 ├ ƒ /api/patients/[id]                         267 B         103 kB
+#19 45.14 ├ ƒ /api/patients/[id]/candidates              267 B         103 kB
+#19 45.14 ├ ƒ /api/patients/[id]/cases                   267 B         103 kB
+#19 45.14 ├ ƒ /api/patients/[id]/his/link                267 B         103 kB
+#19 45.14 ├ ƒ /api/patients/[id]/his/match               267 B         103 kB
+#19 45.14 ├ ƒ /api/patients/[id]/his/summary             267 B         103 kB
+#19 45.14 ├ ƒ /api/patients/[id]/profile-tags            267 B         103 kB
+#19 45.14 ├ ƒ /api/patients/[id]/profile-tags/[tagId]    267 B         103 kB
+#19 45.14 ├ ƒ /api/patients/[id]/split                   267 B         103 kB
+#19 45.14 ├ ƒ /api/patients/candidates                   267 B         103 kB
+#19 45.14 ├ ƒ /api/patients/dismiss                      267 B         103 kB
+#19 45.14 ├ ƒ /api/patients/merge                        267 B         103 kB
+#19 45.14 ├ ƒ /api/patients/merge/[id]/undo              267 B         103 kB
+#19 45.14 ├ ƒ /api/profile-tags                          267 B         103 kB
+#19 45.14 ├ ƒ /api/profile-tags/[id]                     267 B         103 kB
+#19 45.14 ├ ƒ /api/quick-replies                         267 B         103 kB
+#19 45.14 ├ ƒ /api/quick-replies/[id]                    267 B         103 kB
+#19 45.14 ├ ƒ /api/settings                              267 B         103 kB
+#19 45.14 ├ ƒ /api/settings/auth                         267 B         103 kB
+#19 45.14 ├ ƒ /api/settings/auth/test                    267 B         103 kB
+#19 45.14 ├ ƒ /api/settings/his                          267 B         103 kB
+#19 45.14 ├ ƒ /api/settings/his/test                     267 B         103 kB
+#19 45.14 ├ ƒ /api/tags                                  267 B         103 kB
+#19 45.14 ├ ƒ /api/tags/[id]                             267 B         103 kB
+#19 45.14 ├ ƒ /api/team                                  267 B         103 kB
+#19 45.14 ├ ƒ /api/team/[id]                             267 B         103 kB
+#19 45.14 ├ ƒ /api/unread                                267 B         103 kB
+#19 45.14 ├ ƒ /api/webhooks/line/[channelId]             267 B         103 kB
+#19 45.14 ├ ƒ /api/webhooks/meta                         267 B         103 kB
+#19 45.14 ├ ƒ /broadcast                               8.82 kB         112 kB
+#19 45.14 ├ ƒ /dashboard                                8.3 kB         111 kB
+#19 45.14 ├ ƒ /inbox                                   30.3 kB         143 kB
+#19 45.14 ├ ○ /login                                   7.19 kB         110 kB
+#19 45.14 ├ ƒ /patients                                4.57 kB         120 kB
+#19 45.14 └ ƒ /settings                                22.5 kB         128 kB
+#19 45.14 + First Load JS shared by all                 103 kB
+#19 45.14   ├ chunks/1255-dc3ddf72a1dc71a7.js          46.6 kB
+#19 45.14   ├ chunks/4bd1b696-f785427dddbba9fb.js      54.2 kB
+#19 45.14   └ other shared chunks (total)              1.93 kB
+#19 45.14 
+#19 45.14 
+#19 45.14 ƒ Middleware                                 34.5 kB
+#19 45.14 
+#19 45.14 ○  (Static)   prerendered as static content
+#19 45.14 ƒ  (Dynamic)  server-rendered on demand
+#19 45.14 
+#19 DONE 45.3s
+
+#20 [migrate deps 4/5] COPY package.json package-lock.json ./
+#20 CACHED
+
+#21 [migrate deps 5/5] RUN npm ci --no-audit --no-fund
+#21 CACHED
+
+#22 [migrate build 1/3] WORKDIR /app
+#22 CACHED
+
+#23 [migrate build 2/3] COPY . .
+#23 CACHED
+
+#13 [migrate deps 3/5] RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+#13 CACHED
+
+#16 [migrate deps 2/5] WORKDIR /app
+#16 CACHED
+
+#24 [migrate build 3/3] RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" npx prisma generate  && DATABASE_URL="postgresql://build:build@localhost:5432/build" npx prisma version >/dev/null  && npm run build
+#24 CACHED
+
+#25 [migrate migrate 1/1] WORKDIR /app
+#25 DONE 0.1s
+
+#26 [migrate] exporting to image
+#26 exporting layers
+#26 ...
+
+#27 [app runner 3/6] RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*  && groupadd --system --gid 1001 app && useradd --system --uid 1001 --gid app app
+#27 CACHED
+
+#28 [app runner 4/6] COPY --from=build --chown=app:app /app/.next/standalone ./
+#28 DONE 0.3s
+
+#26 [migrate] exporting to image
+#26 ...
+
+#29 [app runner 5/6] COPY --from=build --chown=app:app /app/.next/static ./.next/static
+#29 DONE 0.0s
+
+#30 [app runner 6/6] COPY --from=build --chown=app:app /app/public ./public
+#30 DONE 0.0s
+
+#31 [app] exporting to image
+#31 exporting layers 2.1s done
+#31 exporting manifest sha256:3a1560daf098c7481a591c0a22730708e2a8b9a8b88de8596807dfac7155632a
+#31 exporting manifest sha256:3a1560daf098c7481a591c0a22730708e2a8b9a8b88de8596807dfac7155632a done
+#31 exporting config sha256:cc60e5b7b1135b641b335baee182aced2be5f96ba03e3aaded55e59c40e16224 done
+#31 exporting attestation manifest sha256:6be2af98f6c7ec012712cab5d0d8efe96d88a19b65706029bf00f61239777eb5 done
+#31 exporting manifest list sha256:e88436fd3714d2b76b60e15ef82b7ec0ce30da87300604a7bf6b5de99ec4bde2 done
+#31 naming to docker.io/library/hospchat-local-app:latest done
+#31 unpacking to docker.io/library/hospchat-local-app:latest
+#31 unpacking to docker.io/library/hospchat-local-app:latest 0.5s done
+#31 DONE 2.6s
+
+#32 [app] resolving provenance for metadata file
+#32 DONE 0.0s
+
+#26 [migrate] exporting to image
+#26 exporting layers 6.3s done
+#26 exporting manifest sha256:fba3636f35b79794ad4164d55f92307235b9adbd5914ffc4bb7b6b151daa8ed2 done
+#26 exporting config sha256:5aa2a768f654f04b31b9e70ff68a81fbf0578ffdf3e59271381d2df80bcf4b0d done
+#26 exporting attestation manifest sha256:b48234eefe6be4d7395975de86a8a73a3cdab3c47146497245b0357cf98d6a6d done
+#26 exporting manifest list sha256:262302e42aaf2dbea847f51ae2ddff1b71864bb3b7252d5a1c62ac000f3036c8 done
+#26 naming to docker.io/library/hospchat-local-migrate:latest done
+#26 unpacking to docker.io/library/hospchat-local-migrate:latest
+#26 unpacking to docker.io/library/hospchat-local-migrate:latest 1.0s done
+#26 DONE 7.4s
+
+#33 [migrate] resolving provenance for metadata file
+#33 DONE 0.0s
+ Image hospchat-local-app Built 
+ Image hospchat-local-migrate Built 
+build เสร็จใน 58 วินาที
+
+--- 2) start (db → migrate → app → caddy) ---
+ Container hospchat-local-db-1 Running 
+ Container hospchat-local-migrate-1 Recreate 
+ Container hospchat-local-migrate-1 Recreated 
+ Container hospchat-local-app-1 Recreate 
+ Container hospchat-local-app-1 Recreated 
+ Container hospchat-local-caddy-1 Running 
+ Container hospchat-local-db-1 Waiting 
+ Container hospchat-local-db-1 Healthy 
+ Container hospchat-local-migrate-1 Starting 
+ Container hospchat-local-migrate-1 Started 
+ Container hospchat-local-db-1 Waiting 
+ Container hospchat-local-migrate-1 Waiting 
+ Container hospchat-local-db-1 Healthy 
+ Container hospchat-local-migrate-1 Exited 
+ Container hospchat-local-app-1 Starting 
+ Container hospchat-local-app-1 Started 
+migrate-1  | 
+migrate-1  | Prisma schema loaded from prisma/schema.prisma.
+migrate-1  | Datasource "db": PostgreSQL database "hospchat", schema "public" at "db:5432"
+migrate-1  | 
+migrate-1  | 5 migrations found in prisma/migrations
+migrate-1  | 
+migrate-1  | 
+migrate-1  | No pending migrations to apply.
+
+--- 3) รอระบบพร้อม ---
+NAME                     IMAGE                COMMAND                  SERVICE   CREATED         STATUS                                     PORTS
+hospchat-local-app-1     hospchat-local-app   "docker-entrypoint.s…"   app       5 seconds ago   Up Less than a second (health: starting)   3000/tcp
+hospchat-local-caddy-1   caddy:2              "caddy run --config …"   caddy     2 days ago      Up 2 days                                  0.0.0.0:8180->80/tcp, [::]:8180->80/tcp, 0.0.0.0:8543->443/tcp, [::]:8543->443/tcp
+hospchat-local-db-1      postgres:16          "docker-entrypoint.s…"   db        2 days ago      Up 2 days (healthy)                        5432/tcp
+
+--- 4) ใส่ข้อมูลตัวอย่าง ---
+ Container hospchat-local-db-1 Running 
+ Container hospchat-local-db-1 Waiting 
+ Container hospchat-local-db-1 Healthy 
+ Container hospchat-local-migrate-run-277cf430cff5 Creating 
+ Container hospchat-local-migrate-run-277cf430cff5 Created 
+มีข้อมูลอยู่แล้ว — ข้าม seed (ลบฐานข้อมูลด้วย npx prisma migrate reset ถ้าต้องการเริ่มใหม่)
+
+--- 5) smoke test ผ่าน HTTPS (Caddy) ---
+  ✓ health ผ่าน HTTPS
+  ✓ API ไม่ล็อกอิน → 401
+  ✓ รหัสผิด → 401
+  ✓ ล็อกอินเจ้าของ
+  ✓ ได้ cookie เซสชัน
+  ✓ โหลด inbox + ช่องทาง
+  ✓ webhook ลายเซ็นผิด → 401
+  ✓ webhook LINE ลายเซ็นถูก → 200
+  ✓ บันทึกข้อความลูกค้า + บอทตอบอัตโนมัติ (customer,bot,agent)
+  ✓ แอดมินตอบแชท
+  ✓ รายงานทำงาน
+  ✓ realtime (SSE) ผ่าน Caddy
+  ✓ มี HSTS header
+  ✓ http → https redirect
+  ✓ container app healthy
+
+ผลทดสอบ: 15 ผ่าน, 0 ไม่ผ่าน
+เปิดดูในเบราว์เซอร์: https://localhost:8543/login  (owner@example.com / local-owner-pass — ยอมรับคำเตือนใบรับรองของ localhost)
+ทดลองบัญชี AD จำลอง: ตั้งค่า → การเข้าสู่ระบบ (AD) → AD จำลอง → บันทึก แล้วเข้าด้วย mali.s หรือ noi.c (รหัส Mock@1234)
+ปิดระบบทดสอบ: ./scripts/docker-local-test.sh down
+DONE OK

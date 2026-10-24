@@ -1,0 +1,26 @@
+# Caddy ออกใบรับรอง HTTPS (Let's Encrypt) ให้อัตโนมัติ — ต้องชี้ DNS ของโดเมนมาที่เซิร์ฟเวอร์ก่อน
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# Server-Sent Events ต้องส่งต่อทันทีไม่บัฟเฟอร์
+	@events path /api/events
+	reverse_proxy @events app:3000 {
+		flush_interval -1
+	}
+
+	reverse_proxy app:3000
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

@@ -1,0 +1,13 @@
+{
+  "_note": "ไดเรกทอรี AD จำลองสำหรับโหมด mock เท่านั้น — บัญชีสมมติ รหัสผ่านทดสอบทุกบัญชีคือ Mock@1234 ห้ามใช้ในระบบจริง",
+  "domain": "HOSPITAL",
+  "users": [
+    { "username": "mali.s", "displayName": "มะลิ ใจงาม", "mail": "mali.s@hospital.test", "department": "อายุรกรรม", "groups": ["RuamChat-Users", "Dept-Medicine"] },
+    { "username": "pichai.f", "displayName": "พิชัย รักษ์สิทธิ์", "mail": "pichai.f@hospital.test", "department": "การเงิน", "groups": ["RuamChat-Users", "Dept-Finance"] },
+    { "username": "noi.c", "displayName": "น้อย ประสานดี", "mail": "noi.c@hospital.test", "department": "ศูนย์ประสานงาน", "groups": ["RuamChat-Users", "Dept-Coordination"] },
+    { "username": "it.admin", "displayName": "ผู้ดูแลระบบ ไอที", "mail": "it.admin@hospital.test", "department": "เทคโนโลยีสารสนเทศ", "groups": ["RuamChat-Admins", "Domain Admins"] },
+    { "username": "old.staff", "displayName": "อดีต พนักงาน", "mail": "old.staff@hospital.test", "groups": ["RuamChat-Users"], "disabled": true },
+    { "username": "guest.user", "displayName": "ผู้ใช้ ทั่วไป", "mail": "guest.user@hospital.test", "groups": ["Domain Users"] }
+  ],
+  "password": "Mock@1234"
+}

@@ -1,0 +1,161 @@
+@import "tailwindcss";
+
+/*
+ * รวมแชท — "command deck"
+ * โทนกรมท่าเข้ม + สัญญาณสีฟ้าไซอัน, เหลืองอำพัน = ลูกค้ารออยู่, ปะการัง = รอนานเกินไป
+ */
+@theme {
+  --color-canvas: #0d1324; /* พื้นหลังแอป */
+  --color-sunken: #0a0f1d; /* ช่องกรอก / พื้นที่ยุบลง */
+  --color-panel: #141b2e; /* แผง */
+  --color-raised: #1b2440; /* ชิ้นที่ยกขึ้น / hover */
+  --color-line: #26304d; /* เส้นขอบ */
+  --color-line-strong: #34405f;
+  --color-ink: #e8edf8; /* ตัวอักษรหลัก */
+  --color-muted: #8c97b5; /* ตัวอักษรรอง */
+  --color-faint: #5f6a89;
+
+  --color-brand: #34d8e6; /* สัญญาณหลัก (ไซอัน) */
+  --color-brand-dark: #22b8c6;
+  --color-brand-ink: #04202a; /* ตัวอักษรบนพื้นไซอัน */
+  --color-brand-soft: rgb(52 216 230 / 0.12);
+
+  --color-warm: #f5b544; /* ลูกค้ากำลังรอ */
+  --color-hot: #ff6b7a; /* รอนาน / ผิดพลาด */
+  --color-ok: #4ade9b;
+
+  --font-sans: "Anuphan", "IBM Plex Sans Thai", "Noto Sans Thai", system-ui, sans-serif;
+  --font-display: "Bai Jamjuree", "Anuphan", system-ui, sans-serif;
+
+  --animate-pulse-ring: pulse-ring 1.8s ease-out infinite;
+  @keyframes pulse-ring {
+    0% {
+      box-shadow: 0 0 0 0 rgb(245 181 68 / 0.55);
+    }
+    80%,
+    100% {
+      box-shadow: 0 0 0 7px rgb(245 181 68 / 0);
+    }
+  }
+}
+
+html,
+body {
+  height: 100%;
+}
+
+/* ค่าที่ใช้ร่วม (ธีมมืดเป็นค่าเริ่มต้น) */
+:root {
+  --brand-rgb: 52 216 230;
+  --shade-rgb: 0 0 0;
+  --shade-k: 1;
+  --bubble-agent-from: #15414c;
+  --bubble-agent-to: #123341;
+  --note-bg: #1e1b16;
+  --grid-line: rgb(255 255 255 / 0.025);
+  --scroll-thumb: #2b3554;
+  color-scheme: dark;
+}
+
+/* ธีมสว่าง: พื้นขาวอมฟ้า ตัวอักษรกรมท่า สัญญาณไซอันเข้มขึ้นเพื่อให้อ่านบนพื้นขาวได้ */
+:root[data-theme="light"] {
+  --color-canvas: #eef2f8;
+  --color-sunken: #e5eaf2;
+  --color-panel: #ffffff;
+  --color-raised: #f2f5fa;
+  --color-line: #dce3ee;
+  --color-line-strong: #c4cedd;
+  --color-ink: #131b2e;
+  --color-muted: #55617b;
+  --color-faint: #8590a7;
+
+  --color-brand: #0a93a8;
+  --color-brand-dark: #087a8c;
+  --color-brand-ink: #ffffff;
+  --color-brand-soft: rgb(10 147 168 / 0.1);
+
+  --color-warm: #b8740c;
+  --color-hot: #dc3549;
+  --color-ok: #138a5c;
+
+  --brand-rgb: 10 147 168;
+  --shade-rgb: 30 41 70;
+  --shade-k: 0.35;
+  --bubble-agent-from: #e2f5f8;
+  --bubble-agent-to: #d3eef3;
+  --note-bg: #fff6e3;
+  --grid-line: rgb(19 27 46 / 0.045);
+  --scroll-thumb: #c4cedd;
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ตัวเลข / หัวข้อ ใช้ฟอนต์เหลี่ยมแบบหน้าปัด */
+.font-display {
+  font-family: var(--font-display);
+  font-feature-settings: "tnum";
+}
+
+::selection {
+  background: rgb(var(--brand-rgb) / 0.35);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+/* ช่องพิมพ์มีกรอบเรืองแสงของตัวเองอยู่แล้ว */
+input[type="text"]:focus-visible,
+input:not([type]):focus-visible,
+input[type="password"]:focus-visible,
+input[type="email"]:focus-visible,
+input[type="search"]:focus-visible,
+textarea:focus-visible {
+  outline: none;
+}
+
+/* แถบเลื่อนบางๆ */
+.thin-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+
+/* พื้นห้องแชท: ตารางกริดจางๆ แบบหน้าจอ HUD */
+.chat-bg {
+  background-color: var(--color-canvas);
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* ตัวเลือก / ช่องกรอก ให้เข้าธีมมืด */
+select,
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+  color-scheme: inherit;
+}
+select option {
+  background: var(--color-panel);
+  color: var(--color-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@keyframes signal-flow { from { stroke-dashoffset: 628; } to { stroke-dashoffset: 0; } }
+.signal-dash { animation: signal-flow 2.8s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .signal-dash { animation: none; stroke-dasharray: none; stroke-opacity: .5; } }

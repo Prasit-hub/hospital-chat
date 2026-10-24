@@ -1,0 +1,86 @@
+# ระบบจริงบนเซิร์ฟเวอร์: PostgreSQL + แอป + Caddy (HTTPS อัตโนมัติ) + สำรองข้อมูลรายวัน
+#
+#   cp .env.production.example .env.production   # แล้วแก้ค่า
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+#
+# ดูขั้นตอนเต็มใน DEPLOY.md
+
+x-app-env: &app-env
+  env_file: .env.production
+  environment:
+    DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+    NODE_ENV: production
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    # ไม่เปิดพอร์ตฐานข้อมูลออกนอกเครื่อง
+
+  # อัปเดตโครงสร้างฐานข้อมูลก่อนเปิดแอปทุกครั้ง แล้วจบการทำงาน
+  migrate:
+    build: { context: ., target: migrate }
+    <<: *app-env
+    depends_on:
+      db: { condition: service_healthy }
+    restart: "no"
+
+  app:
+    build: { context: ., target: runner }
+    restart: unless-stopped
+    <<: *app-env
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+  # สำรองฐานข้อมูลทุกวัน เก็บย้อนหลัง BACKUP_KEEP_DAYS วัน ไว้ที่ ./backups
+  backup:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    volumes:
+      - ./backups:/backups
+      - ./deploy/backup.sh:/backup.sh:ro
+    entrypoint: ["bash", "/backup.sh"]
+    depends_on:
+      db: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

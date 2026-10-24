@@ -1,0 +1,10 @@
+# ทดสอบชุด production บนเครื่องตัวเอง (Docker Desktop)
+# ใช้ร่วมกับ docker-compose.prod.yml: เปลี่ยนพอร์ตเป็น 8180/8543 (ไม่ชนกับเวอร์ชันร้านค้าที่ใช้ 8080/8443) กันชนกับโปรแกรมอื่น
+# และใช้ใบรับรอง HTTPS ที่ Caddy ออกเองสำหรับ localhost (เบราว์เซอร์จะเตือน — กดยอมรับได้)
+services:
+  caddy:
+    ports: !override
+      - "8180:80"
+      - "8543:443"
+  backup:
+    profiles: ["prod-only"]

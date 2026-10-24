@@ -1,0 +1,11 @@
+/src/generated
+.dev-run
+.env
+
+/node_modules
+/.next
+/.vercel
+.DS_Store   
+.env.local
+.env
+

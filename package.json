@@ -1,0 +1,52 @@
+{
+  "name": "hospital-chat",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio",
+    "setup": "prisma generate && prisma migrate dev && prisma db seed",
+    "create-owner": "tsx scripts/create-owner.ts",
+    "create-user": "tsx scripts/create-user.ts"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "bcryptjs": "^3.0.3",
+    "imapflow": "^2.5.2",
+    "ldapts": "^7.4.0",
+    "lucide-react": "^1.58.0",
+    "mailparser": "^3.9.40",
+    "next": "^15.5.28",
+    "nodemailer": "^10.1.2",
+    "pg": "^8.23.1",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/mailparser": "^3.9.0",
+    "@types/node": "^20",
+    "@types/nodemailer": "^8.0.2",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "dotenv": "^18.0.8",
+    "eslint": "^9",
+    "eslint-config-next": "^15.5.28",
+    "hoodiecrow-imap": "^3.3.1",
+    "prisma": "^7.10.1",
+    "smtp-server": "^3.19.23",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.15",
+    "typescript": "^5"
+  }
+}

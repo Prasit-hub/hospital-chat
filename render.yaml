@@ -1,0 +1,34 @@
+# Render Blueprint — dev/preview เท่านั้น (ดู README หัวข้อ 7, production ยังเป็น Azure VM ตาม DEPLOY.md)
+# ใช้: เชื่อม repo นี้กับ Render แล้วเลือก "New Blueprint" — Render จะอ่านไฟล์นี้และสร้างบริการให้เอง
+# build โดยไม่ระบุ target จึงได้ Dockerfile stage สุดท้าย ("render") ซึ่งรัน prisma migrate deploy ให้ในตัวก่อนเปิดเซิร์ฟเวอร์
+services:
+  - type: web
+    name: ruamchat-preview
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore
+    branch: main
+    healthCheckPath: /api/health
+    envVars:
+      # ต้องกรอกเองในหน้า Render ตอนสร้างจาก Blueprint ครั้งแรก (connection string แบบ pooled/direct จาก Neon)
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: SEED_OWNER_PASSWORD
+        sync: false
+      # สร้างค่าสุ่มให้อัตโนมัติ (คนละตัวกับ production เสมอ)
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      # ค่าคงที่สำหรับ dev/preview — ห้ามเปลี่ยนเป็น live บน Render
+      - key: OUTBOUND_MODE
+        value: mock
+      - key: DISABLE_SCHEDULER
+        value: "true"
+      - key: NEXT_PUBLIC_APP_TZ
+        value: Asia/Bangkok
+      # แก้เป็น URL จริงที่ Render ให้มาหลัง deploy ครั้งแรก (Settings → ดู URL แล้วมาใส่ค่านี้)
+      - key: PUBLIC_BASE_URL
+        sync: false

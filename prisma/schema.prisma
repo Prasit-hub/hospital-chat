@@ -1,0 +1,585 @@
+// รวมแชท (โรงพยาบาล) — โครงสร้างฐานข้อมูล
+// แนวคิดหลัก: คนไข้ 1 คน (Patient) มีได้หลายบัญชีช่องทาง (Contact: LINE / Facebook / IG / อีเมล)
+// คำสั่งที่ใช้บ่อย:
+//   npx prisma migrate dev     สร้าง/อัปเดตตารางตอนพัฒนา
+//   npx prisma db seed         ใส่ข้อมูลตัวอย่าง
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// URL ฐานข้อมูลตั้งค่าใน prisma.config.ts (อ่านจาก DATABASE_URL ใน .env)
+datasource db {
+  provider = "postgresql"
+}
+
+enum ChannelType {
+  line
+  facebook
+  instagram
+  tiktok
+  email
+}
+
+enum Role {
+  owner
+  admin
+  agent
+}
+
+enum ConversationStatus {
+  open
+  pending
+  closed
+}
+
+enum ConversationSource {
+  dm
+  comment
+}
+
+enum Sender {
+  customer
+  agent
+  bot
+  system
+}
+
+enum MessageKind {
+  text
+  image
+  sticker
+  file
+  note
+  system
+}
+
+enum DeliveryStatus {
+  received
+  sending
+  sent
+  failed
+  read
+}
+
+enum BroadcastStatus {
+  draft
+  scheduled
+  sending
+  sent
+  failed
+  cancelled
+}
+
+enum AppointmentStatus {
+  requested
+  confirmed
+  completed
+  cancelled
+}
+
+/// สถานะของงาน (1 งาน = 1 เรื่องที่คนไข้ติดต่อ)
+enum CaseStatus {
+  queued
+  in_progress
+  waiting_patient
+  transfer_pending
+  closed
+}
+
+enum CaseOutcome {
+  answered
+  appointed
+  advised_visit
+  referred_external
+  no_response
+  spam
+  merged
+  other
+}
+
+/// หมวดแท็กคนไข้: ความต้องการพิเศษ / การสื่อสาร / สิ่งที่ชอบ / สิ่งที่ไม่ชอบ
+enum ProfileTagCategory {
+  need
+  communication
+  like
+  dislike
+}
+
+/// หมวดของเรื่องที่คนไข้ติดต่อ
+enum InquiryCategory {
+  appointment
+  rights
+  cost
+  results
+  symptom
+  other
+}
+
+model Organization {
+  id           String          @id @default(cuid())
+  name         String
+  createdAt    DateTime        @default(now())
+  users        User[]
+  channels     Channel[]
+  contacts     Contact[]
+  tags         Tag[]
+  quickReplies QuickReply[]
+  autoReplies  AutoReplyRule[]
+  broadcasts   Broadcast[]
+  patients     Patient[]
+  departments  Department[]
+  auditLogs    AuditLog[]
+  mergeEvents  MergeEvent[]
+  cases        Case[]
+  profileTagDefs ProfileTagDef[]
+  settings     Json            @default("{}")
+}
+
+/// แผนก / หน่วยงานที่รับเรื่องต่อ
+model Department {
+  id            String         @id @default(cuid())
+  orgId         String
+  org           Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name          String
+  color         String         @default("#0ea5e9")
+  /// เตือนเมื่องานที่โอนมาไม่มีคนรับเกินกี่นาที (null = ใช้ค่าขององค์กร)
+  transferSlaMinutes Int?
+  /// คนในแผนกนี้เห็นงานทุกแผนก (เช่น ศูนย์ประสานงาน) เมื่อเปิดการเห็นแชทตามแผนก
+  seesAllCases  Boolean        @default(false)
+  users         User[]
+  appointments  Appointment[]
+  cases         Case[]
+  transfersIn   CaseTransfer[] @relation("TransferTo")
+  transfersOut  CaseTransfer[] @relation("TransferFrom")
+
+  @@unique([orgId, name])
+}
+
+model User {
+  id                String         @id @default(cuid())
+  orgId             String
+  org               Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name              String
+  email             String         @unique
+  role              Role           @default(agent)
+  color             String         @default("#6d5bd0")
+  /// bcrypt hash — null = ยังไม่ได้ตั้งรหัสผ่าน (ล็อกอินไม่ได้)
+  passwordHash      String?
+  /// false = ถูกปิดการใช้งาน (ลบออกจากทีม) แต่เก็บประวัติแชทไว้
+  active            Boolean        @default(true)
+  /// แผนกที่สังกัด (ใช้กับแท็บ "แผนกของฉัน")
+  departmentId      String?
+  department        Department?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  lastSeenAt        DateTime?
+  /// local = รหัสผ่านในระบบนี้ · ad = เข้าสู่ระบบด้วยบัญชี AD (บทบาท/แผนกมาจากกลุ่มใน AD)
+  authSource        String         @default("local")
+  /// ชื่อบัญชี AD (sAMAccountName ตัวพิมพ์เล็ก)
+  adUsername        String?        @unique
+  /// ซิงก์ชื่อ/บทบาท/แผนกจาก AD ล่าสุดเมื่อ
+  adSyncedAt        DateTime?
+  createdAt         DateTime       @default(now())
+  messages          Message[]
+  ownedCases        Case[]         @relation("CaseOwner")
+  closedCases       Case[]         @relation("CaseClosedBy")
+  verifiedCases     Case[]         @relation("CaseVerifiedBy")
+  transfersSent     CaseTransfer[] @relation("TransferBy")
+  transfersAccepted CaseTransfer[] @relation("TransferAcceptedBy")
+  caseEvents        CaseEvent[]
+  profileTagsAdded  PatientProfileTag[]
+  sessions          Session[]
+  broadcasts        Broadcast[]
+  appointments      Appointment[]
+  auditLogs         AuditLog[]
+}
+
+/// เซสชันล็อกอิน — เก็บเฉพาะ hash ของ token (token จริงอยู่ใน cookie)
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  userAgent String?
+
+  @@index([userId])
+}
+
+/// เพจ / OA / บัญชีที่เชื่อมต่อ — credentials เข้ารหัส AES-256-GCM (ดู src/lib/crypto.ts)
+model Channel {
+  id          String         @id @default(cuid())
+  orgId       String
+  org         Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  type        ChannelType
+  name        String
+  /// LINE: bot user ID (destination) | Facebook: Page ID | Instagram: IG account ID | Email: อีเมลของร้าน
+  externalId  String
+  credentials String
+  /// สถานะภายในของช่องทาง เช่น อีเมล: UID ล่าสุดที่อ่านแล้ว, เวลาตรวจล่าสุด, ข้อผิดพลาดล่าสุด
+  state       Json           @default("{}")
+  connected   Boolean        @default(true)
+  followers   Int            @default(0)
+  createdAt   DateTime       @default(now())
+  contacts    Contact[]
+  conversations Conversation[]
+  broadcasts  Broadcast[]
+
+  @@unique([type, externalId])
+}
+
+/// บัญชีของคนไข้ในแต่ละช่องทาง (1 คนไข้มีได้หลายบัญชี)
+model Contact {
+  id            String         @id @default(cuid())
+  orgId         String
+  org           Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  channelId     String
+  channel       Channel        @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  /// LINE userId / Facebook PSID / Instagram IGSID / อีเมล
+  externalId    String
+  /// ชื่อที่แสดงในช่องทางนั้น
+  name          String
+  pictureUrl    String?
+  avatarColor   String         @default("#8b5cf6")
+  patientId     String
+  patient       Patient        @relation(fields: [patientId], references: [id])
+  createdAt     DateTime       @default(now())
+  conversations Conversation[]
+
+  @@unique([channelId, externalId])
+  @@index([patientId])
+}
+
+/// แฟ้มคนไข้ — รวมทุกบัญชีช่องทางของคนเดียวกัน
+model Patient {
+  id           String        @id @default(cuid())
+  orgId        String
+  org          Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  /// เลขประจำตัวผู้ป่วย (กรอกเอง หรือผูกจากการตรวจกับ HIS)
+  hn           String?
+  /// เวลาที่ตรวจ HN + วันเกิดตรงกับ HIS ล่าสุด (ว่าง = HN กรอกเอง ยังไม่ได้ตรวจ)
+  hisVerifiedAt DateTime?
+  name         String
+  birthDate    DateTime?     @db.Date
+  phone        String?
+  email        String?
+  note         String?
+  avatarColor  String        @default("#8b5cf6")
+  tags         Tag[]
+  contacts     Contact[]
+  appointments Appointment[]
+  cases        Case[]
+  profileTags  PatientProfileTag[]
+  /// ถูกรวมเข้ากับแฟ้มอื่นแล้ว (ซ่อนจากรายการ แต่เก็บไว้เพื่อยกเลิกการรวมได้)
+  mergedIntoId String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([orgId, hn])
+  @@index([orgId, phone])
+  @@index([orgId, email])
+}
+
+/// ประวัติการรวมแฟ้มคนไข้ — ใช้ยกเลิกการรวม
+model MergeEvent {
+  id             String       @id @default(cuid())
+  orgId          String
+  org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  survivorId     String
+  mergedId       String
+  /// บัญชีช่องทางที่ย้ายจากแฟ้มที่ถูกรวม
+  contactIds     String[]
+  tagIds         String[]
+  appointmentIds String[]
+  caseIds        String[]
+  profileTagIds  String[]
+  /// งานที่ถูกปิดเพราะการรวม (เปิดคืนเมื่อยกเลิกการรวม) { caseId, status }
+  meta           Json         @default("{}")
+  /// ข้อมูลแฟ้มหลักก่อนรวม (ใช้คืนค่าเมื่อยกเลิก)
+  survivorBefore Json
+  reason         String?
+  actorId        String
+  createdAt      DateTime     @default(now())
+  undoneAt       DateTime?
+  undoneById     String?
+
+  @@index([orgId, createdAt])
+}
+
+/// คู่ที่เจ้าหน้าที่ยืนยันแล้วว่า "ไม่ใช่คนเดียวกัน" — ไม่ต้องแนะนำอีก
+model MergeDismissal {
+  orgId     String
+  aId       String
+  bId       String
+  actorId   String
+  createdAt DateTime @default(now())
+
+  @@id([aId, bId])
+}
+
+/// บันทึกการกระทำที่สำคัญ (รวมแฟ้ม ยืนยันตัวตน แก้ HN ฯลฯ) — ไม่เก็บเนื้อหาทางคลินิก
+model AuditLog {
+  id         String       @id @default(cuid())
+  orgId      String
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  actorId    String?
+  actor      User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     String
+  targetType String
+  targetId   String
+  meta       Json         @default("{}")
+  createdAt  DateTime     @default(now())
+
+  @@index([orgId, createdAt])
+}
+
+model Tag {
+  id       String       @id @default(cuid())
+  orgId    String
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name     String
+  color      String
+  patients   Patient[]
+  broadcasts Broadcast[]
+
+  @@unique([orgId, name])
+}
+
+/// ห้องแชทของ "บัญชีช่องทาง" หนึ่งบัญชี — งาน (Case) อยู่ระดับคนไข้ ไม่ใช่ระดับห้องแชท
+model Conversation {
+  id                    String             @id @default(cuid())
+  contactId             String
+  contact               Contact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  channelId             String
+  channel               Channel            @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  source                ConversationSource @default(dm)
+  unread                Int                @default(0)
+  lastMessage           String             @default("")
+  lastMessageAt         DateTime           @default(now())
+  /// ใช้ตรวจกฎ 24 ชม. ของ Messenger / Instagram
+  lastCustomerMessageAt DateTime?
+  /// LINE reply token ล่าสุด (ใช้ตอบฟรีได้ครั้งเดียวภายในเวลาสั้นๆ)
+  replyToken            String?
+  replyTokenAt          DateTime?
+  createdAt             DateTime           @default(now())
+  messages              Message[]
+
+  @@unique([contactId, channelId, source])
+  @@index([lastMessageAt])
+}
+
+/// งาน: 1 เรื่องที่คนไข้ติดต่อ — คนไข้ 1 คนมีงานที่ยังไม่ปิดได้ครั้งละ 1 งาน (unique index บางส่วนใน migration)
+model Case {
+  id              String           @id @default(cuid())
+  number          Int              @unique @default(autoincrement())
+  orgId           String
+  org             Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  patientId       String
+  patient         Patient          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  status          CaseStatus       @default(queued)
+  ownerId         String?
+  owner           User?            @relation("CaseOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  departmentId    String?
+  department      Department?      @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  category        InquiryCategory?
+  urgent          Boolean          @default(false)
+  urgentReason    String?
+  urgentAt        DateTime?
+  /// ยืนยันตัวตนคนไข้สำหรับงานนี้
+  verifiedAt      DateTime?
+  verifiedById    String?
+  verifiedBy      User?            @relation("CaseVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
+  verifyMethod    String?
+  openedAt        DateTime         @default(now())
+  acceptedAt      DateTime?
+  firstResponseAt DateTime?
+  waitingSince    DateTime?
+  closedAt        DateTime?
+  closedById      String?
+  closedBy        User?            @relation("CaseClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  outcome         CaseOutcome?
+  closeNote       String?
+  /// งานก่อนหน้าที่เปิดซ้ำมา (กด "เปิดงานเดิมอีกครั้ง" จะไม่สร้างงานใหม่)
+  reopenCount     Int              @default(0)
+  messages        Message[]
+  transfers       CaseTransfer[]
+  events          CaseEvent[]
+  appointments    Appointment[]
+  profileTags     PatientProfileTag[]
+
+  @@index([orgId, status])
+  @@index([patientId])
+}
+
+/// การโอนงานไปแผนก — รอคนในแผนกกดรับ หรือถูกตีกลับ / ดึงกลับ
+model CaseTransfer {
+  id           String      @id @default(cuid())
+  caseId       String
+  case         Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  fromDeptId   String?
+  fromDept     Department? @relation("TransferFrom", fields: [fromDeptId], references: [id], onDelete: SetNull)
+  fromUserId   String?
+  fromUser     User?       @relation("TransferBy", fields: [fromUserId], references: [id], onDelete: SetNull)
+  toDeptId     String?
+  toDept       Department? @relation("TransferTo", fields: [toDeptId], references: [id], onDelete: SetNull)
+  reason       String
+  doneNote     String?
+  createdAt    DateTime    @default(now())
+  acceptedAt   DateTime?
+  acceptedById String?
+  acceptedBy   User?       @relation("TransferAcceptedBy", fields: [acceptedById], references: [id], onDelete: SetNull)
+  returnedAt   DateTime?
+  returnReason String?
+  recalledAt   DateTime?
+
+  @@index([caseId])
+  @@index([toDeptId, acceptedAt])
+}
+
+/// เหตุการณ์ของงาน (ใช้ทำประวัติและรายงาน) — ไม่เก็บเนื้อหาแชท
+model CaseEvent {
+  id        String   @id @default(cuid())
+  caseId    String
+  case      Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  type      String
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  meta      Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  @@index([caseId, createdAt])
+}
+
+/// รายการแท็กคนไข้กลาง (ผู้ดูแลกำหนด / เจ้าหน้าที่เสนอ)
+model ProfileTagDef {
+  id              String             @id @default(cuid())
+  orgId           String
+  org             Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  category        ProfileTagCategory
+  label           String
+  active          Boolean            @default(true)
+  /// เจ้าหน้าที่พิมพ์เพิ่มเอง รอผู้ดูแลพิจารณาเข้ารายการกลาง
+  suggested       Boolean            @default(false)
+  /// คนไข้ที่มีแท็กนี้ไม่ได้รับประกาศ
+  blocksBroadcast Boolean            @default(false)
+  createdById     String?
+  createdAt       DateTime           @default(now())
+  uses            PatientProfileTag[]
+
+  @@unique([orgId, category, label])
+}
+
+model PatientProfileTag {
+  id        String        @id @default(cuid())
+  patientId String
+  patient   Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  defId     String
+  def       ProfileTagDef @relation(fields: [defId], references: [id], onDelete: Cascade)
+  note      String?
+  addedById String?
+  addedBy   User?         @relation(fields: [addedById], references: [id], onDelete: SetNull)
+  caseId    String?
+  case      Case?         @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  addedAt   DateTime      @default(now())
+
+  @@unique([patientId, defId])
+}
+
+model Message {
+  id             String         @id @default(cuid())
+  conversationId String
+  conversation   Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  caseId         String?
+  case           Case?          @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  sender         Sender
+  agentId        String?
+  agent          User?          @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  kind           MessageKind    @default(text)
+  text           String         @default("")
+  /// หัวเรื่องอีเมล (เฉพาะช่องทางอีเมล)
+  subject        String?
+  mediaUrl       String?
+  /// ID ข้อความจากแพลตฟอร์ม — ใช้กันข้อความซ้ำเมื่อ webhook ส่งมาซ้ำ
+  externalId     String?        @unique
+  status         DeliveryStatus @default(received)
+  error          String?
+  createdAt      DateTime       @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([caseId])
+}
+
+/// คำขอนัดหมาย — ยืนยันนัดจริงในระบบ HIS แล้วค่อยเปลี่ยนสถานะเป็น "ยืนยันแล้ว"
+model Appointment {
+  id           String            @id @default(cuid())
+  number       Int               @unique @default(autoincrement())
+  patientId    String
+  patient      Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  departmentId String?
+  department   Department?       @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  caseId       String?
+  case         Case?             @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  doctor       String?
+  date         DateTime?         @db.Date
+  /// morning | afternoon | any
+  slot         String            @default("any")
+  reason       String?
+  status       AppointmentStatus @default(requested)
+  /// เลขนัดใน HIS เมื่อคำขอนี้ถูกลงนัดแล้ว (ผูกจาก sourceRef)
+  hisAppointmentId String?
+  createdById  String?
+  createdBy    User?             @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([patientId])
+}
+
+model QuickReply {
+  id       String       @id @default(cuid())
+  orgId    String
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  shortcut String
+  title    String
+  text     String
+}
+
+model AutoReplyRule {
+  id       String        @id @default(cuid())
+  orgId    String
+  org      Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  keywords String[]
+  reply    String
+  enabled  Boolean       @default(true)
+  channels ChannelType[]
+}
+
+/// บรอดแคสต์ — ส่งข้อความถึงลูกค้าหลายคนในช่องทางเดียว (กรองตามแท็กได้)
+model Broadcast {
+  id          String          @id @default(cuid())
+  orgId       String
+  org         Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  channelId   String
+  channel     Channel         @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  /// null = ลูกค้าทั้งหมดของช่องทาง
+  tagId       String?
+  tag         Tag?            @relation(fields: [tagId], references: [id], onDelete: SetNull)
+  title       String
+  text        String
+  imageUrl    String?
+  status      BroadcastStatus @default(draft)
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  /// จำนวนผู้รับเป้าหมาย / ส่งสำเร็จ / ส่งไม่สำเร็จ / ข้าม (เช่นเกิน 24 ชม. ของ Meta)
+  targeted    Int             @default(0)
+  sent        Int             @default(0)
+  failed      Int             @default(0)
+  skipped     Int             @default(0)
+  error       String?
+  createdById String?
+  createdBy   User?           @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime        @default(now())
+
+  @@index([status, scheduledAt])
+}

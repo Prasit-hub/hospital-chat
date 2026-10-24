@@ -1,0 +1,40 @@
+# ===== ฐานข้อมูล =====
+DATABASE_URL="postgresql://postgres:postgres@localhost:5435/hospchat?schema=public"
+
+# ===== ความปลอดภัย =====
+# คีย์เข้ารหัส token ของช่องทาง: openssl rand -base64 32  (ห้ามเปลี่ยนหลังใช้งานจริง ไม่งั้นถอดรหัสไม่ได้)
+ENCRYPTION_KEY="fyihPx47Sqm8/ZJRXxESyvxtYVpP3c1VQWERuUFiqZ0="
+# รหัสผ่านเริ่มต้นของ owner@example.com ตอนรัน seed (เว้นว่าง = สุ่มและแสดงในหน้าจอ)
+SEED_OWNER_PASSWORD="dev-owner-pass"
+# cookie เซสชันใช้ Secure ใน production (ต้องเป็น https) — ตั้ง true เฉพาะกรณีทดสอบ production ผ่าน http
+INSECURE_COOKIES="false"
+
+# ===== URL สาธารณะ (https) ที่แพลตฟอร์มเรียก webhook เข้ามา เช่นจาก ngrok =====
+PUBLIC_BASE_URL="https://36bc-110-169-128-14.ngrok-free.app"
+
+# ===== Meta (Facebook Messenger + Instagram) =====
+META_APP_SECRET=""
+# ตั้งเองเป็นข้อความอะไรก็ได้ แล้วใส่ค่าเดียวกันใน Meta App Dashboard > Webhooks
+META_VERIFY_TOKEN=""
+META_GRAPH_VERSION="v23.0"
+# true = อนุญาตตอบหลัง 24 ชม. (ไม่เกิน 7 วัน) ด้วย tag HUMAN_AGENT — ต้องได้รับอนุมัติสิทธิ์จาก Meta ก่อน
+META_HUMAN_AGENT_TAG="false"
+
+# ===== อื่นๆ =====
+NEXT_PUBLIC_APP_TZ="Asia/Bangkok"
+# mock = ไม่ส่งข้อความออกไปยังแพลตฟอร์มจริง (สำหรับทดลอง/สาธิต) | live = ส่งจริง
+OUTBOUND_MODE="mock"
+# true = ปิดตัวจับเวลาส่งบรอดแคสต์ที่ตั้งเวลาไว้ (เช่นรันหลาย instance แล้วให้ตัวเดียวทำ)
+DISABLE_SCHEDULER="false"
+
+# ตรวจอีเมลเข้าทุกกี่วินาที (ช่องทางอีเมล)
+EMAIL_POLL_SECONDS=60
+
+# HIS: จำกัดการค้นต่อเจ้าหน้าที่ (ครั้ง/นาที)
+HIS_RATE_PER_MIN=20
+# HIS: อนุญาต http:// สำหรับ Gateway ในเครือข่ายภายใน (production บังคับ https โดยปริยาย)
+HIS_ALLOW_HTTP=1
+# AD: อนุญาต ldap:// แบบไม่เข้ารหัส (production บังคับ ldaps:// หรือ StartTLS โดยปริยาย)
+LDAP_ALLOW_PLAIN=1
+# ใบรับรอง CA ของโดเมน AD (สำหรับ ldaps://)
+# NODE_EXTRA_CA_CERTS=/etc/ssl/certs/hospital-ca.pem

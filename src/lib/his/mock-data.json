@@ -1,0 +1,68 @@
+{
+  "_note": "ข้อมูลสมมติทั้งหมด (ไม่ใช่คนไข้จริง) ใช้ทดสอบโหมด mock และ scripts/mock-his-gateway.mjs — dayOffset นับจากวันนี้",
+  "patients": [
+    {
+      "hn": "6501234", "nationalId": "1100000000011", "name": "สมศรี มีสุข", "birthDate": "1958-03-14", "sex": "F", "phone": "0812345678", "status": "active",
+      "appointments": [
+        { "id": "APPT-889120", "dayOffset": 4, "time": "09:00", "clinicCode": "MED01", "clinicName": "อายุรกรรม", "doctorName": "พญ.ตัวอย่าง ใจดี", "status": "booked", "instructions": "งดน้ำและอาหารหลังเที่ยงคืน (เจาะเลือด)", "sourceRef": "APT-10002" },
+        { "id": "APPT-871002", "dayOffset": -27, "time": "09:30", "clinicCode": "MED01", "clinicName": "อายุรกรรม", "doctorName": "พญ.ตัวอย่าง ใจดี", "status": "completed" }
+      ],
+      "encounters": [
+        { "id": "VN-2610120045", "type": "OPD", "dayOffset": -6, "start": "08:40", "durationMin": 145, "clinicName": "อายุรกรรม", "status": "finished" },
+        { "id": "VN-2609210112", "type": "OPD", "dayOffset": -27, "start": "09:20", "durationMin": 120, "clinicName": "อายุรกรรม", "status": "finished" }
+      ]
+    },
+    {
+      "hn": "6400987", "nationalId": "1100000000029", "name": "วีระ ทองดี", "birthDate": "1979-11-02", "sex": "M", "phone": "0897654321", "status": "active",
+      "appointments": [
+        { "id": "APPT-890311", "dayOffset": 12, "time": "13:30", "clinicCode": "SUR02", "clinicName": "ศัลยกรรม", "doctorName": "นพ.ทดสอบ รักษาดี", "status": "booked" },
+        { "id": "APPT-885500", "dayOffset": 2, "time": "10:00", "clinicCode": "DEN01", "clinicName": "ทันตกรรม", "status": "cancelled" }
+      ],
+      "encounters": [
+        { "id": "VN-2609180031", "type": "OPD", "dayOffset": -30, "start": "13:10", "durationMin": 95, "clinicName": "ศัลยกรรม", "status": "finished" }
+      ]
+    },
+    {
+      "hn": "6603321", "nationalId": "1100000000037", "name": "ประเสริฐ ใจงาม", "birthDate": "1990-07-21", "sex": "M", "phone": "0625550101", "status": "active",
+      "appointments": [],
+      "encounters": [
+        { "id": "EN-2610150007", "type": "ER", "dayOffset": -3, "start": "22:15", "durationMin": 180, "clinicName": "ห้องฉุกเฉิน", "status": "finished" }
+      ]
+    },
+    {
+      "hn": "6209876", "nationalId": "1100000000045", "name": "กนกวรรณ รักษ์ดี", "birthDate": "1985-12-24", "sex": "F", "phone": "0870001111", "status": "active",
+      "appointments": [],
+      "encounters": [
+        { "id": "AN-2610160003", "type": "IPD", "dayOffset": -2, "start": "15:30", "durationMin": null, "clinicName": "อายุรกรรม", "ward": "หอผู้ป่วยอายุรกรรมหญิง 5", "status": "admitted" }
+      ]
+    },
+    {
+      "hn": "6311452", "nationalId": "1100000000053", "name": "วิไล สายบุญ", "birthDate": "1968-05-30", "sex": "F", "phone": "0861112233", "status": "active",
+      "appointments": [
+        { "id": "APPT-889455", "dayOffset": 5, "time": null, "clinicCode": "DEN01", "clinicName": "ทันตกรรม", "doctorName": "ทพญ.สมใจ (ตัวอย่าง)", "status": "booked", "sourceRef": "APT-10001" }
+      ],
+      "encounters": []
+    },
+    {
+      "hn": "7200001", "nationalId": "1100000000061", "name": "สมชาย ใจดี", "birthDate": "1975-01-15", "sex": "M", "phone": "0891112222", "status": "active",
+      "appointments": [
+        { "id": "APPT-890777", "dayOffset": 7, "time": "08:30", "clinicCode": "EYE01", "clinicName": "จักษุ", "doctorName": "นพ.ตัวอย่าง มองไกล", "status": "booked", "instructions": "ควรมีญาติขับรถมาด้วย (หยอดยาขยายม่านตา)" }
+      ],
+      "encounters": [
+        { "id": "VN-2610080021", "type": "OPD", "dayOffset": -10, "start": "10:05", "durationMin": 70, "clinicName": "จักษุ", "status": "finished" }
+      ]
+    },
+    {
+      "hn": "7200002", "nationalId": "1100000000079", "name": "สมชาย ใจดี", "birthDate": "1975-01-15", "sex": "M", "phone": "0893334444", "status": "active",
+      "appointments": [], "encounters": []
+    },
+    {
+      "hn": "5900456", "nationalId": null, "name": "สมศรี มีสุข", "birthDate": "1958-03-14", "sex": "F", "phone": null, "status": "merged", "mergedToHn": "6501234",
+      "appointments": [], "encounters": []
+    },
+    {
+      "hn": "5800123", "nationalId": "1100000000087", "name": "บุญมี ตัวอย่าง", "birthDate": "1940-02-02", "sex": "M", "phone": "0800000000", "status": "deceased",
+      "appointments": [], "encounters": []
+    }
+  ]
+}
