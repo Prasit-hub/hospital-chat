@@ -141,7 +141,7 @@ export function uiMessage(m: Message): UI.Message {
     caseId: m.caseId ?? undefined,
     from: m.sender,
     agentId: m.agentId ?? undefined,
-    kind: m.kind === "file" ? "text" : m.kind,
+    kind: m.kind,
     text: m.text,
     imageUrl: m.mediaUrl ?? undefined,
     subject: m.subject ?? undefined,

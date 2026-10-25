@@ -36,7 +36,10 @@ import { transferWait, useNow, waitLabel, waitTone, waitingMinutes } from "./Cas
 
 import { Avatar, ChannelBadge, ChannelTag } from "@/components/ui";
 
-export type SendPayload = { kind: "text" | "note"; text: string } | { kind: "image"; imageUrl: string };
+export type SendPayload =
+  | { kind: "text" | "note"; text: string }
+  | { kind: "image"; imageUrl: string }
+  | { kind: "file"; fileUrl: string; fileName?: string };
 
 const EMOJIS = ["🙏", "😊", "👍", "🏥", "💊", "📅", "✅", "❤️", "🩺", "📄"];
 
@@ -96,6 +99,7 @@ export function ChatWindow(p: Props) {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
   const uploadAndSend = async (file: File) => {
     setUploadError("");
     setUploading(true);
@@ -105,7 +109,11 @@ export function ChatWindow(p: Props) {
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "อัปโหลดไม่สำเร็จ");
-      p.onSend({ kind: "image", imageUrl: data.url });
+      if (data.kind === "file") {
+        p.onSend({ kind: "file", fileUrl: data.url, fileName: data.fileName });
+      } else {
+        p.onSend({ kind: "image", imageUrl: data.url });
+      }
       setShowImage(false);
       setImageUrl("");
     } catch (e) {
@@ -476,6 +484,17 @@ export function ChatWindow(p: Props) {
             if (f) void uploadAndSend(f);
           }}
         />
+        <input
+          ref={docInputRef}
+          type="file"
+          accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,text/csv"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (f) void uploadAndSend(f);
+          }}
+        />
 
 
         {quickOpen && (
@@ -574,7 +593,7 @@ export function ChatWindow(p: Props) {
             <ToolBtn label="ส่งรูปภาพ" onClick={() => { setShowImage((v) => !v); setShowQuick(false); setShowEmoji(false); }} active={showImage}>
               <ImageIcon size={17} />
             </ToolBtn>
-            <ToolBtn label="แนบไฟล์ (รูปภาพ)" onClick={() => fileInputRef.current?.click()}>
+            <ToolBtn label="แนบไฟล์ (PDF, Word, Excel ฯลฯ)" onClick={() => docInputRef.current?.click()}>
               <Paperclip size={17} />
             </ToolBtn>
             <ToolBtn label="บันทึกคำขอนัด" onClick={p.onCreateAppointment}>
@@ -688,6 +707,21 @@ function Bubble({
             <ImageIcon size={28} />
             {m.text}
           </div>
+        ) : m.kind === "file" && m.imageUrl ? (
+          <a
+            href={m.imageUrl}
+            target="_blank"
+            rel="noreferrer"
+            className={cn(
+              "flex items-center gap-2 rounded-2xl border px-3.5 py-2.5 text-[14px] leading-relaxed hover:underline",
+              m.from === "customer" && "rounded-tl-md border-line bg-panel text-ink",
+              m.from === "agent" && "rounded-tr-md border-brand/35 bg-gradient-to-br from-[var(--bubble-agent-from)] to-[var(--bubble-agent-to)] text-ink",
+              m.from === "bot" && "rounded-tr-md border-dashed border-line-strong bg-raised/60 text-ink/90",
+            )}
+          >
+            <Paperclip size={16} className="shrink-0" />
+            <span className="truncate">{m.text || "ไฟล์แนบ"}</span>
+          </a>
         ) : (
           <div
             className={cn(
@@ -711,7 +745,15 @@ function Bubble({
             {m.from === "agent" && onRetry && (
               <button
                 className="font-medium underline"
-                onClick={() => onRetry(m.kind === "image" && m.imageUrl ? { kind: "image", imageUrl: m.imageUrl } : { kind: "text", text: m.text })}
+                onClick={() =>
+                  onRetry(
+                    m.kind === "image" && m.imageUrl
+                      ? { kind: "image", imageUrl: m.imageUrl }
+                      : m.kind === "file" && m.imageUrl
+                        ? { kind: "file", fileUrl: m.imageUrl, fileName: m.text }
+                        : { kind: "text", text: m.text },
+                  )
+                }
               >
                 ส่งอีกครั้ง
               </button>

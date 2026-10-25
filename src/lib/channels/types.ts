@@ -23,10 +23,14 @@ export interface IncomingEvent {
 }
 
 export interface OutgoingMessage {
-  kind: "text" | "image";
+  kind: "text" | "image" | "file";
   text?: string;
   /** URL รูปภาพที่เข้าถึงได้แบบ public (https) */
   imageUrl?: string;
+  /** URL ไฟล์แนบ (ไม่ใช่รูปภาพ) ที่เข้าถึงได้แบบ public (https) */
+  fileUrl?: string;
+  /** ชื่อไฟล์เดิมที่เจ้าหน้าที่อัปโหลด เอาไว้แสดงให้ลูกค้าเห็น */
+  fileName?: string;
 }
 
 export interface SendContext {

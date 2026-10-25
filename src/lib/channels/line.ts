@@ -36,6 +36,10 @@ function toLineMessage(msg: OutgoingMessage) {
   if (msg.kind === "image" && msg.imageUrl) {
     return { type: "image", originalContentUrl: msg.imageUrl, previewImageUrl: msg.imageUrl };
   }
+  // LINE ไม่มีข้อความประเภทไฟล์แนบทั่วไป — ส่งเป็นข้อความตัวหนังสือพร้อมลิงก์แทน
+  if (msg.kind === "file" && msg.fileUrl) {
+    return { type: "text", text: `ไฟล์แนบ: ${msg.fileName ?? msg.fileUrl}\n${msg.fileUrl}` };
+  }
   return { type: "text", text: msg.text ?? "" };
 }
 

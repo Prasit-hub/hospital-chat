@@ -241,7 +241,7 @@ export async function sendOutgoing(
       agentId: who.sender === "agent" ? who.agentId : null,
       kind: msg.kind,
       text: msg.text ?? "",
-      mediaUrl: msg.imageUrl,
+      mediaUrl: msg.imageUrl ?? msg.fileUrl,
       status: "sending",
     },
   });

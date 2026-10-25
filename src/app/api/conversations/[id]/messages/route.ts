@@ -36,6 +36,7 @@ const Post = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("text"), text: z.string().trim().min(1).max(5000) }),
   z.object({ kind: z.literal("note"), text: z.string().trim().min(1).max(5000) }),
   z.object({ kind: z.literal("image"), imageUrl: z.string().url().startsWith("https://") }),
+  z.object({ kind: z.literal("file"), fileUrl: z.string().url().startsWith("https://"), fileName: z.string().trim().min(1).max(255).optional() }),
 ]);
 
 export const POST = handle(async (req: Request, { params }: Ctx) => {
@@ -54,7 +55,11 @@ export const POST = handle(async (req: Request, { params }: Ctx) => {
       : await sendOutgoing(
           id,
           { sender: "agent", agentId: me.id },
-          body.kind === "image" ? { kind: "image", imageUrl: body.imageUrl } : { kind: "text", text: body.text },
+          body.kind === "image"
+            ? { kind: "image", imageUrl: body.imageUrl }
+            : body.kind === "file"
+              ? { kind: "file", fileUrl: body.fileUrl, fileName: body.fileName }
+              : { kind: "text", text: body.text },
         );
   return json(uiMessage(m), m.status === "failed" ? 502 : 201);
 });

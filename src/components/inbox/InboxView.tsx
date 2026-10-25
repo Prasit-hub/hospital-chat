@@ -390,8 +390,8 @@ export function InboxView() {
       from: "agent",
       agentId: ws.meId,
       kind: payload.kind,
-      text: payload.kind === "image" ? "ส่งรูปภาพ" : payload.text,
-      imageUrl: payload.kind === "image" ? payload.imageUrl : undefined,
+      text: payload.kind === "image" ? "ส่งรูปภาพ" : payload.kind === "file" ? (payload.fileName ?? "ไฟล์แนบ") : payload.text,
+      imageUrl: payload.kind === "image" ? payload.imageUrl : payload.kind === "file" ? payload.fileUrl : undefined,
       at: nowLocal(),
       status: payload.kind === "note" ? "sent" : "sending",
     };

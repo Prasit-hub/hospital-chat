@@ -64,7 +64,7 @@ export interface Department {
 
 export type InquiryCategory = "appointment" | "rights" | "cost" | "results" | "symptom" | "other";
 
-export type MessageKind = "text" | "image" | "sticker" | "note" | "system";
+export type MessageKind = "text" | "image" | "sticker" | "file" | "note" | "system";
 
 export interface Message {
   id: string;

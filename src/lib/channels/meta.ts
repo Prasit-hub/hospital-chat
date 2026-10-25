@@ -112,7 +112,9 @@ function makeMetaAdapter(type: ChannelType): ChannelAdapter<MetaCreds> {
       const message =
         msg.kind === "image" && msg.imageUrl
           ? { attachment: { type: "image", payload: { url: msg.imageUrl, is_reusable: true } } }
-          : { text: msg.text ?? "" };
+          : msg.kind === "file" && msg.fileUrl
+            ? { attachment: { type: "file", payload: { url: msg.fileUrl, is_reusable: true } } }
+            : { text: msg.text ?? "" };
 
       // กฎหน้าต่าง 24 ชม.
       const age = ctx.lastCustomerMessageAt ? Date.now() - new Date(ctx.lastCustomerMessageAt).getTime() : Infinity;

@@ -213,11 +213,18 @@ export const emailAdapter: ChannelAdapter<EmailCreds> = {
   parse: () => [],
 
   async send(c, ctx: SendContext, msg: OutgoingMessage) {
-    const text = msg.kind === "image" ? `รูปภาพ: ${msg.imageUrl}` : (msg.text ?? "");
+    const text =
+      msg.kind === "image"
+        ? `รูปภาพ: ${msg.imageUrl}`
+        : msg.kind === "file"
+          ? `ไฟล์แนบ: ${msg.fileName ?? msg.fileUrl}\n${msg.fileUrl}`
+          : (msg.text ?? "");
     const html =
       msg.kind === "image"
         ? `<p><img src="${escapeHtml(msg.imageUrl ?? "")}" alt="" style="max-width:100%"></p>`
-        : `<div style="font-family:sans-serif;font-size:14px;line-height:1.6">${escapeHtml(text).replace(/\n/g, "<br>")}</div>`;
+        : msg.kind === "file"
+          ? `<p><a href="${escapeHtml(msg.fileUrl ?? "")}">${escapeHtml(msg.fileName ?? msg.fileUrl ?? "ไฟล์แนบ")}</a></p>`
+          : `<div style="font-family:sans-serif;font-size:14px;line-height:1.6">${escapeHtml(text).replace(/\n/g, "<br>")}</div>`;
     try {
       const info = await smtpTransport(c).sendMail({
         from: { name: c.fromName || c.address, address: c.address },
