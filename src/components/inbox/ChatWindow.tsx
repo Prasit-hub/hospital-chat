@@ -93,6 +93,27 @@ export function ChatWindow(p: Props) {
   );
   const [showImage, setShowImage] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadAndSend = async (file: File) => {
+    setUploadError("");
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.set("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "อัปโหลดไม่สำเร็จ");
+      p.onSend({ kind: "image", imageUrl: data.url });
+      setShowImage(false);
+      setImageUrl("");
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : "อัปโหลดไม่สำเร็จ");
+    } finally {
+      setUploading(false);
+    }
+  };
   const [mode, setMode] = useState<"reply" | "note">("reply");
   const [text, setText] = useState("");
   useEffect(() => {
@@ -405,28 +426,56 @@ export function ChatWindow(p: Props) {
         )}
 
         {showImage && (
-          <form
-            className="absolute bottom-full left-3 right-3 mb-2 flex gap-2 rounded-xl border border-line bg-panel p-2 shadow-lg sm:left-24 sm:right-auto sm:w-[420px]"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!imageUrl.startsWith("https://")) return;
-              p.onSend({ kind: "image", imageUrl });
-              setImageUrl("");
-              setShowImage(false);
-            }}
-          >
-            <input
-              autoFocus
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="วางลิงก์รูปภาพ https://…"
-              className="min-w-0 flex-1 rounded-lg border border-line px-2.5 py-1.5 text-sm outline-none focus:border-brand"
-            />
-            <button className="rounded-lg bg-brand px-3 text-sm font-medium text-brand-ink disabled:opacity-40" disabled={!imageUrl.startsWith("https://")}>
-              ส่งรูป
-            </button>
-          </form>
+          <div className="absolute bottom-full left-3 right-3 mb-2 flex flex-col gap-2 rounded-xl border border-line bg-panel p-2 shadow-lg sm:left-24 sm:right-auto sm:w-[420px]">
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!imageUrl.startsWith("https://")) return;
+                p.onSend({ kind: "image", imageUrl });
+                setImageUrl("");
+                setShowImage(false);
+              }}
+            >
+              <input
+                autoFocus
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="วางลิงก์รูปภาพ https://…"
+                disabled={uploading}
+                className="min-w-0 flex-1 rounded-lg border border-line px-2.5 py-1.5 text-sm outline-none focus:border-brand disabled:opacity-40"
+              />
+              <button
+                className="rounded-lg bg-brand px-3 text-sm font-medium text-brand-ink disabled:opacity-40"
+                disabled={!imageUrl.startsWith("https://") || uploading}
+              >
+                ส่งรูป
+              </button>
+            </form>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-1.5 rounded-lg border border-dashed border-line px-2.5 py-1.5 text-[13px] text-muted hover:border-brand hover:text-brand disabled:opacity-40"
+              >
+                <ImageIcon size={14} /> {uploading ? "กำลังอัปโหลด…" : "หรืออัปโหลดรูปจากเครื่อง"}
+              </button>
+              {uploadError && <span className="text-[12px] text-hot">{uploadError}</span>}
+            </div>
+          </div>
         )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (f) void uploadAndSend(f);
+          }}
+        />
 
 
         {quickOpen && (
@@ -525,7 +574,7 @@ export function ChatWindow(p: Props) {
             <ToolBtn label="ส่งรูปภาพ" onClick={() => { setShowImage((v) => !v); setShowQuick(false); setShowEmoji(false); }} active={showImage}>
               <ImageIcon size={17} />
             </ToolBtn>
-            <ToolBtn label="แนบไฟล์" onClick={() => {}}>
+            <ToolBtn label="แนบไฟล์ (รูปภาพ)" onClick={() => fileInputRef.current?.click()}>
               <Paperclip size={17} />
             </ToolBtn>
             <ToolBtn label="บันทึกคำขอนัด" onClick={p.onCreateAppointment}>

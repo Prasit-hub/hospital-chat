@@ -32,3 +32,6 @@ services:
       # แก้เป็น URL จริงที่ Render ให้มาหลัง deploy ครั้งแรก (Settings → ดู URL แล้วมาใส่ค่านี้)
       - key: PUBLIC_BASE_URL
         sync: false
+      # ที่เก็บไฟล์แนบ (Vercel Blob) — เว้นว่างได้ ถ้าเว้นว่างปุ่มแนบรูปจะใช้ไม่ได้แต่ระบบอื่นใช้ได้ปกติ
+      - key: BLOB_READ_WRITE_TOKEN
+        sync: false
