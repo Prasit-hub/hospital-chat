@@ -339,6 +339,8 @@ function ChannelsSection() {
       "ต้องได้รับสิทธิ์ TikTok Business Messaging API ก่อน (ยังไม่รองรับในเวอร์ชันนี้)",
     email:
       "รับอีเมลจากคนไข้เข้ามาในแชท (IMAP) และตอบกลับเป็นอีเมล (SMTP) — ใช้ได้กับ Gmail, Google Workspace, อีเมลโฮสติ้ง",
+    phone:
+      "รับสายจากระบบ Yeastar PBX เข้ากล่องแชทรวม (ยังไม่มีหน้าตั้งค่าในเวอร์ชันนี้ — ตั้งค่าผ่าน API โดยตรง)",
   };
 
   async function pollNow(c: ChannelRow) {

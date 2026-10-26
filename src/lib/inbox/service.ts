@@ -47,22 +47,40 @@ export async function ingest(channel: Channel, ev: IncomingEvent) {
   let isNewContact = false;
   if (!contact) {
     const profile = await fetchProfile(channel, ev.userExternalId);
-    const fallback = { line: "ผู้ติดต่อ LINE", facebook: "ผู้ติดต่อ Facebook", instagram: "ผู้ติดต่อ Instagram", tiktok: "ผู้ติดต่อ TikTok", email: "ผู้ติดต่ออีเมล" }[channel.type];
+    const fallback = {
+      line: "ผู้ติดต่อ LINE",
+      facebook: "ผู้ติดต่อ Facebook",
+      instagram: "ผู้ติดต่อ Instagram",
+      tiktok: "ผู้ติดต่อ TikTok",
+      email: "ผู้ติดต่ออีเมล",
+      phone: "ผู้โทรเข้า",
+    }[channel.type];
     const name =
       profile?.name ?? ev.senderName ?? (channel.type === "email" ? ev.userExternalId : `${fallback} ${ev.userExternalId.slice(-4)}`);
     const avatarColor = colorFor(ev.userExternalId);
+    // ช่องทางโทรศัพท์: จับคู่เบอร์กับคนไข้เดิมในระบบก่อนเปิดแฟ้มใหม่ (แผน A ใน design doc — เจอรายเดียวตรงกันเท่านั้นถึงผูกอัตโนมัติ)
+    const phoneMatch =
+      channel.type === "phone"
+        ? await prisma.patient.findMany({ where: { orgId: channel.orgId, phone: ev.userExternalId }, select: { id: true }, take: 2 })
+        : [];
     try {
       // บัญชีใหม่ → เปิดแฟ้มคนไข้ใหม่ไว้ก่อน เจ้าหน้าที่รวมกับแฟ้มเดิมได้ภายหลัง (ระบบจะแนะนำถ้าข้อมูลตรงกัน)
       contact = await prisma.$transaction(async (tx) => {
-        const patient = await tx.patient.create({
-          data: {
-            orgId: channel.orgId,
-            name,
-            email: channel.type === "email" ? ev.userExternalId : undefined,
-            avatarColor,
-            tags: { connect: await newPatientTag(channel.orgId) },
-          },
-        });
+        const patientId =
+          phoneMatch.length === 1
+            ? phoneMatch[0].id
+            : (
+                await tx.patient.create({
+                  data: {
+                    orgId: channel.orgId,
+                    name,
+                    email: channel.type === "email" ? ev.userExternalId : undefined,
+                    phone: channel.type === "phone" ? ev.userExternalId : undefined,
+                    avatarColor,
+                    tags: { connect: await newPatientTag(channel.orgId) },
+                  },
+                })
+              ).id;
         return tx.contact.create({
           data: {
             orgId: channel.orgId,
@@ -71,7 +89,7 @@ export async function ingest(channel: Channel, ev: IncomingEvent) {
             name,
             pictureUrl: profile?.pictureUrl,
             avatarColor,
-            patientId: patient.id,
+            patientId,
           },
         });
       });

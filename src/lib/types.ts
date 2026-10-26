@@ -1,4 +1,4 @@
-export type ChannelType = "line" | "facebook" | "instagram" | "tiktok" | "email";
+export type ChannelType = "line" | "facebook" | "instagram" | "tiktok" | "email" | "phone";
 
 export type ConversationStatus = "open" | "pending" | "closed";
 
@@ -64,7 +64,7 @@ export interface Department {
 
 export type InquiryCategory = "appointment" | "rights" | "cost" | "results" | "symptom" | "other";
 
-export type MessageKind = "text" | "image" | "sticker" | "file" | "note" | "system";
+export type MessageKind = "text" | "image" | "sticker" | "file" | "note" | "system" | "call";
 
 export interface Message {
   id: string;

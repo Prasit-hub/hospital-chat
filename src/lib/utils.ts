@@ -11,6 +11,7 @@ export const channelMeta: Record<ChannelType, { label: string; short: string; co
   instagram: { label: "Instagram", short: "IG", color: "#d62976", bg: "#2d1424" },
   tiktok: { label: "TikTok", short: "TT", color: "#fe2c55", bg: "#2a1720" },
   email: { label: "อีเมล", short: "@", color: "#ea580c", bg: "#2d1d12" },
+  phone: { label: "โทรศัพท์", short: "โทร", color: "#38bdf8", bg: "#0e2733" },
 };
 
 /** เวลาปัจจุบันตาม APP_TZ ในรูปแบบ "YYYY-MM-DDTHH:mm:ss" */

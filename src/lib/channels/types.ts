@@ -8,7 +8,7 @@ export interface IncomingEvent {
   userExternalId: string;
   /** ID ข้อความ ใช้กันซ้ำ */
   messageExternalId: string;
-  kind: "text" | "image" | "sticker" | "file";
+  kind: "text" | "image" | "sticker" | "file" | "call";
   text: string;
   mediaUrl?: string;
   timestamp: number;

@@ -20,6 +20,7 @@ enum ChannelType {
   instagram
   tiktok
   email
+  phone
 }
 
 enum Role {
@@ -53,6 +54,7 @@ enum MessageKind {
   file
   note
   system
+  call
 }
 
 enum DeliveryStatus {

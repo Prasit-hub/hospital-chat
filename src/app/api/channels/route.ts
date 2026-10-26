@@ -1,11 +1,13 @@
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { apiError, handle, json, parseBody } from "@/lib/api";
-import { encryptJson } from "@/lib/crypto";
+import { decryptJson, encryptJson } from "@/lib/crypto";
 import { currentUser } from "@/lib/auth";
 import { lineBotInfo } from "@/lib/channels/line";
 import { metaPageInfo } from "@/lib/channels/meta";
 import { verifyEmailAccount, type EmailCreds } from "@/lib/channels/email";
+import type { YeastarCreds } from "@/lib/channels/yeastar";
 import { uiChannel } from "@/lib/inbox/serialize";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +15,15 @@ export const dynamic = "force-dynamic";
 function webhookUrl(req: Request, c: { id: string; type: string }) {
   if (c.type === "email") return "";
   const base = process.env.PUBLIC_BASE_URL || new URL(req.url).origin;
-  return c.type === "line" ? `${base}/api/webhooks/line/${c.id}` : `${base}/api/webhooks/meta`;
+  if (c.type === "line") return `${base}/api/webhooks/line/${c.id}`;
+  if (c.type === "phone") return `${base}/api/webhooks/yeastar/${c.id}`;
+  return `${base}/api/webhooks/meta`;
+}
+
+/** โทเคนสุ่มสำหรับช่องทางที่ไม่มี signature แบบ HMAC (เช่น Yeastar) — ใส่เป็น ?token= หรือ Authorization: Bearer */
+function webhookToken(c: { type: string; credentials: string }): string | undefined {
+  if (c.type !== "phone") return undefined;
+  return decryptJson<YeastarCreds>(c.credentials).token;
 }
 
 function emailStatus(c: { type: string; state: unknown }) {
@@ -25,7 +35,7 @@ function emailStatus(c: { type: string; state: unknown }) {
 export const GET = handle(async (req: Request) => {
   const me = await currentUser();
   const rows = await prisma.channel.findMany({ where: { orgId: me.orgId }, orderBy: { createdAt: "asc" } });
-  return json(rows.map((c) => ({ ...uiChannel(c), webhookUrl: webhookUrl(req, c), email: emailStatus(c) })));
+  return json(rows.map((c) => ({ ...uiChannel(c), webhookUrl: webhookUrl(req, c), webhookToken: webhookToken(c), email: emailStatus(c) })));
 });
 
 const Post = z.discriminatedUnion("type", [
@@ -54,9 +64,13 @@ const Post = z.discriminatedUnion("type", [
     smtpSecure: z.boolean(),
     allowSelfSigned: z.boolean().optional(),
   }),
+  z.object({
+    type: z.literal("phone"),
+    name: z.string().trim().min(1).max(100).default("โทรศัพท์ (Yeastar)"),
+  }),
 ]);
 
-async function upsertChannel(orgId: string, type: "line" | "facebook" | "instagram" | "email", externalId: string, name: string, creds: object, followers = 0) {
+async function upsertChannel(orgId: string, type: "line" | "facebook" | "instagram" | "email" | "phone", externalId: string, name: string, creds: object, followers = 0) {
   return prisma.channel.upsert({
     where: { type_externalId: { type, externalId } },
     create: { orgId, type, externalId, name, credentials: encryptJson(creds), followers },
@@ -81,6 +95,13 @@ export const POST = handle(async (req: Request) => {
       accessToken: body.accessToken,
     });
     return json([{ ...uiChannel(c), webhookUrl: webhookUrl(req, c) }], 201);
+  }
+
+  if (body.type === "phone") {
+    const token = randomBytes(24).toString("base64url");
+    const externalId = `yeastar:${randomBytes(8).toString("hex")}`;
+    const c = await upsertChannel(me.orgId, "phone", externalId, body.name, { token } satisfies YeastarCreds);
+    return json([{ ...uiChannel(c), webhookUrl: webhookUrl(req, c), webhookToken: token }], 201);
   }
 
   if (body.type === "email") {

@@ -3,6 +3,7 @@ import { decryptJson } from "@/lib/crypto";
 import { lineAdapter } from "./line";
 import { facebookAdapter, instagramAdapter } from "./meta";
 import { emailAdapter } from "./email";
+import { yeastarAdapter } from "./yeastar";
 import type { ChannelAdapter, OutgoingMessage, SendContext, SendResult } from "./types";
 import { SendError } from "./types";
 
@@ -24,6 +25,7 @@ const adapters: Record<ChannelType, ChannelAdapter<never>> = {
   instagram: instagramAdapter as ChannelAdapter<never>,
   tiktok: tiktokPlaceholder as ChannelAdapter<never>,
   email: emailAdapter as ChannelAdapter<never>,
+  phone: yeastarAdapter as ChannelAdapter<never>,
 };
 
 export function adapterFor(type: ChannelType) {
