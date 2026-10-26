@@ -12,11 +12,6 @@ import {
   PanelRight,
   Paperclip,
   RotateCcw,
-  ArrowRightLeft,
-  Hand,
-  Undo2,
-  Hourglass,
-  Play,
   Send,
   CalendarPlus,
   Mail,
@@ -29,33 +24,26 @@ import {
   TriangleAlert,
   Zap,
 } from "lucide-react";
-import type { Case, Channel, Contact, Conversation, InquiryCategory, Message, Patient } from "@/lib/types";
-import { caseStatusMeta, categoryMeta, channelMeta, cn, dayLabel, hhmm, nowLocal, outcomeMeta, profileCategoryMeta, thaiDate, VERIFY_METHODS } from "@/lib/utils";
+import type { Channel, Contact, Conversation, ConversationStatus, InquiryCategory, Message, Patient } from "@/lib/types";
+import { categoryMeta, channelMeta, cn, dayLabel, hhmm, nowLocal, VERIFY_METHODS } from "@/lib/utils";
 import { useWorkspace } from "./workspace";
-import { transferWait, useNow, waitLabel, waitTone, waitingMinutes } from "./CaseList";
+import { useNow, waitLabel, waitTone, waitingMinutes } from "./ConversationList";
 
 import { Avatar, ChannelBadge, ChannelTag } from "@/components/ui";
 
-export type SendPayload =
-  | { kind: "text" | "note"; text: string }
-  | { kind: "image"; imageUrl: string }
-  | { kind: "file"; fileUrl: string; fileName?: string };
+export type SendPayload = { kind: "text" | "note"; text: string } | { kind: "image"; imageUrl: string };
 
 const EMOJIS = ["🙏", "😊", "👍", "🏥", "💊", "📅", "✅", "❤️", "🩺", "📄"];
 
-/** ข้อมูลประกอบของงาน (PATCH /api/cases/[id]) */
 export interface CasePatch {
+  assigneeId?: string | null;
+  departmentId?: string | null;
   category?: InquiryCategory | null;
   urgent?: { on: boolean; reason?: string };
   verify?: { method: string } | null;
 }
 
-export type SimpleAction = "accept" | "wait" | "resume" | "recall" | "reopen";
-
 interface Props {
-  /** งานที่เปิดดูอยู่ */
-  kase: Case;
-  /** ห้องแชทที่จะตอบกลับ (เลือกได้จากช่องทางของคนไข้) */
   conversation: Conversation;
   patient: Patient;
   contact: Contact;
@@ -69,23 +57,13 @@ interface Props {
   onToggleInfo: () => void;
   onSend: (payload: SendPayload) => void;
   onCase: (patch: CasePatch) => void;
-  onAction: (a: SimpleAction) => void;
-  onAssign: (userId: string) => void;
-  onTransfer: () => void;
-  onReturn: () => void;
-  onClose: () => void;
+  onStatus: (s: ConversationStatus) => void;
   onSwitchConversation: (id: string) => void;
   onCreateAppointment: () => void;
-  /** เลขงาน/สถานะของงานต่างๆ ในเส้นเวลา (ใช้ทำเส้นคั่นงาน) */
-  caseInfo: Record<string, { code: string; status: Case["status"]; outcome?: Case["outcome"]; closedAt?: string }>;
-  /** ข้อความที่จะแทรกลงช่องตอบ (เช่น นัดจาก HIS) — n เปลี่ยนทุกครั้งที่กด */
-  insertText?: { text: string; n: number };
 }
 
 export function ChatWindow(p: Props) {
-  const { agents, quickReplies, departments, me, meId, caseSettings } = useWorkspace();
-  const k = p.kase;
-  const isAdmin = me.role !== "agent";
+  const { agents, quickReplies, departments } = useWorkspace();
   const [onlyThisChannel, setOnlyThisChannel] = useState(false);
   const [verifyOpen, setVerifyOpen] = useState(false);
   const multi = p.siblings.length > 1;
@@ -96,52 +74,12 @@ export function ChatWindow(p: Props) {
   );
   const [showImage, setShowImage] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const docInputRef = useRef<HTMLInputElement>(null);
-  const uploadAndSend = async (file: File) => {
-    setUploadError("");
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.set("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "อัปโหลดไม่สำเร็จ");
-      if (data.kind === "file") {
-        p.onSend({ kind: "file", fileUrl: data.url, fileName: data.fileName });
-      } else {
-        p.onSend({ kind: "image", imageUrl: data.url });
-      }
-      setShowImage(false);
-      setImageUrl("");
-    } catch (e) {
-      setUploadError(e instanceof Error ? e.message : "อัปโหลดไม่สำเร็จ");
-    } finally {
-      setUploading(false);
-    }
-  };
   const [mode, setMode] = useState<"reply" | "note">("reply");
   const [text, setText] = useState("");
-  useEffect(() => {
-    if (!p.insertText) return;
-    setMode("reply");
-    setText((t) => (t.trim() ? t.trimEnd() + "\n" + p.insertText!.text : p.insertText!.text));
-    setTimeout(() => inputRef.current?.focus(), 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.insertText?.n]);
   const [showQuick, setShowQuick] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  // ช่องพิมพ์ยืดตามข้อความ (สูงสุดประมาณ 8 บรรทัด)
-  useEffect(() => {
-    const el = inputRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 200) + "px";
-  }, [text]);
   const meta = channelMeta[p.channel.type];
 
   useEffect(() => {
@@ -191,13 +129,8 @@ export function ChatWindow(p: Props) {
   }
 
   const metaWindow = p.channel.type === "facebook" || p.channel.type === "instagram";
-  // เส้นคั่นงาน: แสดงเมื่อข้อความเปลี่ยนงาน
-  const prevCase = new Map<string, string | undefined>();
-  shown.forEach((m, i) => prevCase.set(m.id, i ? shown[i - 1].caseId : undefined));
-  const caseOfPrev = (m: Message) => prevCase.get(m.id);
   const now = useNow();
-  const wait = waitingMinutes({ case: k, lastCustomerMessageAt: p.conversation.lastCustomerMessageAt, lastMessage: p.conversation.lastMessage }, now);
-  const tw = transferWait(k, now, caseSettings.transferSla, departments.find((d) => d.id === k.pendingTransfer?.toDeptId)?.slaMinutes);
+  const wait = waitingMinutes(p.conversation, now);
   const emailSubject = [...p.messages].reverse().find((m) => m.from === "customer" && m.subject)?.subject;
   const lastCustomerAt = p.conversation.lastCustomerMessageAt;
   const windowExpired = metaWindow && !!lastCustomerAt && hoursBetween(lastCustomerAt, nowLocal()) > 24;
@@ -244,19 +177,47 @@ export function ChatWindow(p: Props) {
         </div>
 
         <button
-          onClick={() => p.onCase({ urgent: { on: !k.urgent } })}
-          aria-pressed={k.urgent}
-          title={k.urgent ? "ยกเลิกป้ายเร่งด่วน" : "ติดป้ายเร่งด่วน"}
+          onClick={() => p.onCase({ urgent: { on: !p.conversation.urgent } })}
+          aria-pressed={p.conversation.urgent}
+          title={p.conversation.urgent ? "ยกเลิกป้ายเร่งด่วน" : "ติดป้ายเร่งด่วน"}
           className={cn(
             "flex items-center gap-1 rounded-xl border px-2 py-1.5 text-xs font-medium transition-colors",
-            k.urgent ? "border-hot/50 bg-hot/15 text-hot" : "border-line bg-sunken text-muted hover:text-ink",
+            p.conversation.urgent ? "border-hot/50 bg-hot/15 text-hot" : "border-line bg-sunken text-muted hover:text-ink",
           )}
         >
           <Siren size={14} />
-          <span className="hidden lg:inline">{k.urgent ? "เร่งด่วน" : "ติดป้ายเร่งด่วน"}</span>
+          <span className="hidden lg:inline">{p.conversation.urgent ? "เร่งด่วน" : "ติดป้ายเร่งด่วน"}</span>
         </button>
 
-        <CaseActions k={k} meId={meId} myDept={me.departmentId} isAdmin={isAdmin} p={p} />
+        {/* สถานะแชท: สวิตช์ 3 ช่อง */}
+        <div className="flex items-center rounded-xl border border-line bg-sunken p-0.5 text-xs" role="group" aria-label="สถานะแชท">
+          {(
+            [
+              { id: "open", label: "เปิดอยู่", icon: RotateCcw, on: "bg-brand-soft text-brand" },
+              { id: "pending", label: "รอดำเนินการ", icon: Clock, on: "bg-warm/15 text-warm" },
+              { id: "closed", label: "ปิดแชท", icon: CircleCheck, on: "bg-ok/15 text-ok" },
+            ] as const
+          ).map((st) => {
+            const active = p.conversation.status === st.id;
+            return (
+              <button
+                key={st.id}
+                onClick={() => !active && p.onStatus(st.id)}
+                aria-pressed={active}
+                aria-label={st.label}
+                title={st.label}
+                className={cn(
+                  "flex items-center gap-1 rounded-[9px] px-2 py-1.5 font-medium transition-colors",
+                  active ? st.on : "text-muted hover:text-ink",
+                  st.id === "pending" && !active && "hidden lg:flex",
+                )}
+              >
+                <st.icon size={13} />
+                <span className={cn("hidden", active ? "2xl:inline" : "")}>{st.label}</span>
+              </button>
+            );
+          })}
+        </div>
         <button onClick={p.onToggleInfo} className="rounded-lg p-1.5 text-muted hover:bg-raised" aria-label="แฟ้มคนไข้">
           <PanelRight size={19} />
         </button>
@@ -264,14 +225,14 @@ export function ChatWindow(p: Props) {
 
       {/* แถบเรื่องที่ติดต่อ: ยืนยันตัวตน / หมวด / แผนก / ผู้รับผิดชอบ */}
       <div className="relative flex items-center gap-2 overflow-x-auto thin-scroll border-b border-line bg-sunken/60 px-4 py-1.5 text-xs">
-        {k.verified ? (
+        {p.conversation.verified ? (
           <button
             onClick={() => setVerifyOpen((v) => !v)}
             className="flex shrink-0 items-center gap-1 rounded-lg bg-ok/15 px-2 py-1 font-medium text-ok"
-            title={`ยืนยันโดย ${agents.find((a) => a.id === k.verified?.byId)?.name ?? "-"} เวลา ${hhmm(k.verified.at)}`}
+            title={`ยืนยันโดย ${agents.find((a) => a.id === p.conversation.verified?.byId)?.name ?? "-"} เวลา ${hhmm(p.conversation.verified.at)}`}
           >
             <ShieldCheck size={14} /> ยืนยันตัวตนแล้ว
-            <span className="hidden font-normal text-ok/80 md:inline">· {k.verified.method}</span>
+            <span className="hidden font-normal text-ok/80 md:inline">· {p.conversation.verified.method}</span>
           </button>
         ) : (
           <button
@@ -283,35 +244,29 @@ export function ChatWindow(p: Props) {
         )}
         <CaseSelect
           label="หมวด"
-          value={k.category ?? ""}
+          value={p.conversation.category ?? ""}
           onChange={(v) => p.onCase({ category: (v || null) as InquiryCategory | null })}
-          options={(Object.keys(categoryMeta) as InquiryCategory[]).map((x) => ({ value: x, label: categoryMeta[x].label }))}
+          options={(Object.keys(categoryMeta) as InquiryCategory[]).map((k) => ({ value: k, label: categoryMeta[k].label }))}
           empty="ยังไม่ระบุ"
         />
-        <span className={cn("flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-1", k.departmentId ? "border-line bg-panel" : "border-dashed border-line-strong")}>
-          <span className="text-faint">แผนก</span>
-          <span className="font-medium text-ink">{departments.find((d) => d.id === k.departmentId)?.name ?? "ศูนย์กลาง"}</span>
-        </span>
-        {isAdmin && k.status !== "closed" && k.status !== "transfer_pending" ? (
-          <CaseSelect
-            label="ผู้รับผิดชอบ"
-            value={k.ownerId ?? ""}
-            onChange={(v) => v && p.onAssign(v)}
-            options={agents.map((a) => ({ value: a.id, label: a.name }))}
-            empty="ยังไม่มี"
-          />
-        ) : (
-          <span className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line bg-panel px-2 py-1">
-            <span className="text-faint">ผู้รับผิดชอบ</span>
-            <span className="font-medium text-ink">{agents.find((a) => a.id === k.ownerId)?.name ?? "ยังไม่มี"}</span>
-          </span>
-        )}
-        <span className="ml-auto shrink-0 font-display text-[11px] text-faint">{k.code}</span>
+        <CaseSelect
+          label="แผนก"
+          value={p.conversation.departmentId ?? ""}
+          onChange={(v) => p.onCase({ departmentId: v || null })}
+          options={departments.map((d) => ({ value: d.id, label: d.name }))}
+          empty="ยังไม่ส่งต่อ"
+        />
+        <CaseSelect
+          label="ผู้รับผิดชอบ"
+          value={p.conversation.assigneeId ?? ""}
+          onChange={(v) => p.onCase({ assigneeId: v || null })}
+          options={agents.map((a) => ({ value: a.id, label: a.name }))}
+          empty="ยังไม่มี"
+        />
       </div>
-      <KnowBar patient={p.patient} />
       {verifyOpen && (
         <VerifyPopover
-          verified={k.verified}
+          verified={p.conversation.verified}
           patient={p.patient}
           onClose={() => setVerifyOpen(false)}
           onVerify={(method) => {
@@ -323,12 +278,12 @@ export function ChatWindow(p: Props) {
 
       {/* Messages */}
       <div ref={scrollRef} className="chat-bg flex-1 space-y-1 overflow-y-auto thin-scroll px-4 py-4 sm:px-8">
-        {k.urgent && (
+        {p.conversation.urgent && (
           <div role="alert" className="sticky top-0 z-10 mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-2xl border border-hot/40 bg-[color-mix(in_oklab,var(--color-hot)_12%,var(--color-panel))] px-4 py-2.5 text-sm shadow-sm">
             <Siren size={18} className="shrink-0 text-hot" />
             <div className="min-w-0 flex-1 basis-[220px]">
               <div className="font-semibold text-hot">เรื่องเร่งด่วน — ตรวจสอบทันที</div>
-              <div className="text-xs text-muted">{k.urgentReason ?? "ติดป้ายโดยเจ้าหน้าที่"} · หากเป็นภาวะฉุกเฉินให้แนะนำโทร 1669 หรือมาห้องฉุกเฉิน</div>
+              <div className="text-xs text-muted">{p.conversation.urgentReason ?? "ติดป้ายโดยเจ้าหน้าที่"} · หากเป็นภาวะฉุกเฉินให้แนะนำโทร 1669 หรือมาห้องฉุกเฉิน</div>
             </div>
             <button
               onClick={() => {
@@ -375,9 +330,8 @@ export function ChatWindow(p: Props) {
               <span className="h-px flex-1 bg-gradient-to-l from-transparent to-line" />
             </div>
             {g.items.map((m, i) => (
-              <div key={m.id}>
-              {m.caseId && m.caseId !== caseOfPrev(m) && <CaseDivider id={m.caseId} info={p.caseInfo[m.caseId]} current={m.caseId === k.id} />}
               <Bubble
+                key={m.id}
                 m={m}
                 contact={sib[m.conversationId]?.contact ?? p.contact}
                 channelType={multi ? (sib[m.conversationId]?.channel.type ?? p.channel.type) : undefined}
@@ -385,7 +339,6 @@ export function ChatWindow(p: Props) {
                 agents={agents}
                 onRetry={m.conversationId === p.conversation.id ? p.onSend : undefined}
               />
-              </div>
             ))}
           </div>
         ))}
@@ -403,18 +356,7 @@ export function ChatWindow(p: Props) {
 
       {/* Composer */}
       <div className="relative px-3 pb-3 pt-1 sm:px-5 sm:pb-4">
-        {k.status === "closed" && mode === "reply" && (
-          <p className="mb-1.5 flex items-center gap-1.5 text-[11px] text-muted">
-            <CircleCheck size={12} className="shrink-0 text-ok" /> งานนี้ปิดแล้ว ({outcomeMeta[k.outcome ?? "other"].label}) — ถ้าส่งข้อความ ระบบจะเปิดงานใหม่ให้คุณเป็นผู้รับผิดชอบ
-          </p>
-        )}
-        {k.pendingTransfer && tw && (
-          <p className={cn("mb-1.5 flex items-center gap-1.5 text-[11px]", tw.overdue ? "text-hot" : "text-warm")}>
-            <ArrowRightLeft size={12} className="shrink-0" /> รอ{departments.find((d) => d.id === k.pendingTransfer?.toDeptId)?.name ?? "แผนก"}รับงาน {tw.min} นาที
-            {tw.overdue && " — เกินเวลาที่กำหนด"} · เหตุผล: {k.pendingTransfer.reason}
-          </p>
-        )}
-        {!k.verified && k.status !== "closed" && mode === "reply" && (
+        {!p.conversation.verified && mode === "reply" && (
           <p className="mb-1.5 flex items-center gap-1.5 text-[11px] text-warm">
             <ShieldAlert size={12} className="shrink-0" /> ยังไม่ได้ยืนยันตัวตน — อย่าแจ้งผลตรวจหรือข้อมูลการรักษาจนกว่าจะยืนยัน (พิมพ์ /ยืนยัน เพื่อขอข้อมูล)
           </p>
@@ -434,67 +376,28 @@ export function ChatWindow(p: Props) {
         )}
 
         {showImage && (
-          <div className="absolute bottom-full left-3 right-3 mb-2 flex flex-col gap-2 rounded-xl border border-line bg-panel p-2 shadow-lg sm:left-24 sm:right-auto sm:w-[420px]">
-            <form
-              className="flex gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!imageUrl.startsWith("https://")) return;
-                p.onSend({ kind: "image", imageUrl });
-                setImageUrl("");
-                setShowImage(false);
-              }}
-            >
-              <input
-                autoFocus
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="วางลิงก์รูปภาพ https://…"
-                disabled={uploading}
-                className="min-w-0 flex-1 rounded-lg border border-line px-2.5 py-1.5 text-sm outline-none focus:border-brand disabled:opacity-40"
-              />
-              <button
-                className="rounded-lg bg-brand px-3 text-sm font-medium text-brand-ink disabled:opacity-40"
-                disabled={!imageUrl.startsWith("https://") || uploading}
-              >
-                ส่งรูป
-              </button>
-            </form>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="flex items-center gap-1.5 rounded-lg border border-dashed border-line px-2.5 py-1.5 text-[13px] text-muted hover:border-brand hover:text-brand disabled:opacity-40"
-              >
-                <ImageIcon size={14} /> {uploading ? "กำลังอัปโหลด…" : "หรืออัปโหลดรูปจากเครื่อง"}
-              </button>
-              {uploadError && <span className="text-[12px] text-hot">{uploadError}</span>}
-            </div>
-          </div>
+          <form
+            className="absolute bottom-full left-3 right-3 mb-2 flex gap-2 rounded-xl border border-line bg-panel p-2 shadow-lg sm:left-24 sm:right-auto sm:w-[420px]"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!imageUrl.startsWith("https://")) return;
+              p.onSend({ kind: "image", imageUrl });
+              setImageUrl("");
+              setShowImage(false);
+            }}
+          >
+            <input
+              autoFocus
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="วางลิงก์รูปภาพ https://…"
+              className="min-w-0 flex-1 rounded-lg border border-line px-2.5 py-1.5 text-sm outline-none focus:border-brand"
+            />
+            <button className="rounded-lg bg-brand px-3 text-sm font-medium text-brand-ink disabled:opacity-40" disabled={!imageUrl.startsWith("https://")}>
+              ส่งรูป
+            </button>
+          </form>
         )}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/gif,image/webp"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            e.target.value = "";
-            if (f) void uploadAndSend(f);
-          }}
-        />
-        <input
-          ref={docInputRef}
-          type="file"
-          accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,text/csv"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            e.target.value = "";
-            if (f) void uploadAndSend(f);
-          }}
-        />
 
 
         {quickOpen && (
@@ -593,7 +496,7 @@ export function ChatWindow(p: Props) {
             <ToolBtn label="ส่งรูปภาพ" onClick={() => { setShowImage((v) => !v); setShowQuick(false); setShowEmoji(false); }} active={showImage}>
               <ImageIcon size={17} />
             </ToolBtn>
-            <ToolBtn label="แนบไฟล์ (PDF, Word, Excel ฯลฯ)" onClick={() => docInputRef.current?.click()}>
+            <ToolBtn label="แนบไฟล์" onClick={() => {}}>
               <Paperclip size={17} />
             </ToolBtn>
             <ToolBtn label="บันทึกคำขอนัด" onClick={p.onCreateAppointment}>
@@ -707,21 +610,6 @@ function Bubble({
             <ImageIcon size={28} />
             {m.text}
           </div>
-        ) : m.kind === "file" && m.imageUrl ? (
-          <a
-            href={m.imageUrl}
-            target="_blank"
-            rel="noreferrer"
-            className={cn(
-              "flex items-center gap-2 rounded-2xl border px-3.5 py-2.5 text-[14px] leading-relaxed hover:underline",
-              m.from === "customer" && "rounded-tl-md border-line bg-panel text-ink",
-              m.from === "agent" && "rounded-tr-md border-brand/35 bg-gradient-to-br from-[var(--bubble-agent-from)] to-[var(--bubble-agent-to)] text-ink",
-              m.from === "bot" && "rounded-tr-md border-dashed border-line-strong bg-raised/60 text-ink/90",
-            )}
-          >
-            <Paperclip size={16} className="shrink-0" />
-            <span className="truncate">{m.text || "ไฟล์แนบ"}</span>
-          </a>
         ) : (
           <div
             className={cn(
@@ -745,15 +633,7 @@ function Bubble({
             {m.from === "agent" && onRetry && (
               <button
                 className="font-medium underline"
-                onClick={() =>
-                  onRetry(
-                    m.kind === "image" && m.imageUrl
-                      ? { kind: "image", imageUrl: m.imageUrl }
-                      : m.kind === "file" && m.imageUrl
-                        ? { kind: "file", fileUrl: m.imageUrl, fileName: m.text }
-                        : { kind: "text", text: m.text },
-                  )
-                }
+                onClick={() => onRetry(m.kind === "image" && m.imageUrl ? { kind: "image", imageUrl: m.imageUrl } : { kind: "text", text: m.text })}
               >
                 ส่งอีกครั้ง
               </button>
@@ -834,7 +714,7 @@ function VerifyPopover({
   onVerify,
   onClose,
 }: {
-  verified?: Case["verified"];
+  verified?: Conversation["verified"];
   patient: Patient;
   onVerify: (method: string | null) => void;
   onClose: () => void;
@@ -892,135 +772,6 @@ function VerifyPopover({
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-/** ปุ่มของงานตามสถานะ: รับงาน / รอคนไข้ / โอน / ปิด / รับงานที่โอนมา / ตีกลับ / ดึงกลับ / เปิดอีกครั้ง */
-function CaseActions({ k, meId, myDept, isAdmin, p }: { k: Case; meId: string; myDept?: string; isAdmin: boolean; p: Props }) {
-  const btn = "flex shrink-0 items-center gap-1 rounded-xl border px-2.5 py-1.5 text-xs font-medium transition-colors";
-  const primary = "border-brand bg-brand text-brand-ink hover:bg-brand-dark";
-  const ghost = "border-line bg-sunken text-muted hover:text-ink";
-  const mine = k.ownerId === meId;
-  const canWork = mine || isAdmin || !k.ownerId;
-  const t = k.pendingTransfer;
-  const st = caseStatusMeta[k.status];
-  const label = (txt: string) => <span className="hidden lg:inline">{txt}</span>;
-
-  if (k.status === "queued")
-    return (
-      <div className="flex items-center gap-1.5">
-        <button onClick={() => p.onAction("accept")} className={cn(btn, primary)}>
-          <Hand size={14} /> รับงาน
-        </button>
-        <button onClick={p.onTransfer} className={cn(btn, ghost)} title="โอนงานไปแผนก" aria-label="โอนงาน">
-          <ArrowRightLeft size={14} />
-          {label("โอน")}
-        </button>
-      </div>
-    );
-  if (k.status === "transfer_pending" && t) {
-    const toMe = t.toDeptId === myDept;
-    return (
-      <div className="flex items-center gap-1.5">
-        {(toMe || isAdmin) && (
-          <>
-            <button onClick={() => p.onAction("accept")} className={cn(btn, primary)}>
-              <Hand size={14} /> รับงานที่โอนมา
-            </button>
-            <button onClick={p.onReturn} className={cn(btn, ghost)} aria-label="ตีกลับ">
-              <Undo2 size={14} />
-              {label("ตีกลับ")}
-            </button>
-          </>
-        )}
-        {(t.fromUserId === meId || isAdmin) && (
-          <button onClick={() => p.onAction("recall")} className={cn(btn, ghost)}>
-            <Undo2 size={14} /> ดึงกลับ
-          </button>
-        )}
-        {!toMe && t.fromUserId !== meId && !isAdmin && <span className={cn("rounded-xl px-2.5 py-1.5 text-xs", st.cls)}>{st.label}</span>}
-      </div>
-    );
-  }
-  if (k.status === "closed")
-    return (
-      <div className="flex items-center gap-1.5">
-        <span className="hidden rounded-xl bg-ok/15 px-2.5 py-1.5 text-xs font-medium text-ok sm:inline">ปิดแล้ว · {outcomeMeta[k.outcome ?? "other"].label}</span>
-        <button onClick={() => p.onAction("reopen")} className={cn(btn, ghost)} title="เปิดงานนี้อีกครั้ง (ภายในเวลาที่กำหนด)" aria-label="เปิดงานนี้อีกครั้ง">
-          <RotateCcw size={14} />
-          {label("เปิดอีกครั้ง")}
-        </button>
-      </div>
-    );
-  return (
-    <div className="flex items-center gap-1.5">
-      {k.status === "waiting_patient" ? (
-        <button onClick={() => p.onAction("resume")} className={cn(btn, ghost)} title="กลับมาดำเนินการต่อ" aria-label="ทำต่อ">
-          <Play size={14} />
-          {label("ทำต่อ")}
-        </button>
-      ) : (
-        canWork && (
-          <button onClick={() => p.onAction("wait")} className={cn(btn, ghost)} title="ตั้งเป็นรอคนไข้ตอบ (หยุดนับเวลารอ)" aria-label="รอคนไข้ตอบ">
-            <Hourglass size={14} />
-            {label("รอคนไข้")}
-          </button>
-        )
-      )}
-      {canWork && (
-        <button onClick={p.onTransfer} className={cn(btn, ghost)} title="โอนงานไปแผนก" aria-label="โอนงาน">
-          <ArrowRightLeft size={14} />
-          {label("โอน")}
-        </button>
-      )}
-      {canWork ? (
-        <button onClick={p.onClose} className={cn(btn, "border-ok/50 bg-ok/15 text-ok hover:bg-ok/25")}>
-          <CircleCheck size={14} /> ปิดงาน
-        </button>
-      ) : (
-        <span className={cn("rounded-xl px-2.5 py-1.5 text-xs", st.cls)}>{st.label}</span>
-      )}
-    </div>
-  );
-}
-
-/** เส้นคั่นเมื่อข้อความเริ่มงานใหม่ */
-function CaseDivider({ id, info, current }: { id: string; info?: Props["caseInfo"][string]; current: boolean }) {
-  return (
-    <div id={`case-${id}`} className="my-3 flex scroll-mt-20 items-center gap-2 text-[11px]">
-      <span className={cn("h-px flex-1", current ? "bg-brand/40" : "bg-line")} />
-      <span className={cn("rounded-full border px-2.5 py-0.5 font-display", current ? "border-brand/40 bg-brand-soft text-brand" : "border-line bg-panel text-faint")}>
-        {info?.code ?? "งานก่อนหน้า"}
-        {info && info.status === "closed" && ` · ปิดแล้ว${info.outcome ? ` (${outcomeMeta[info.outcome].label})` : ""}${info.closedAt ? ` ${thaiDate(info.closedAt.slice(0, 10))}` : ""}`}
-        {current && info?.status !== "closed" && " · งานปัจจุบัน"}
-      </span>
-      <span className={cn("h-px flex-1", current ? "bg-brand/40" : "bg-line")} />
-    </div>
-  );
-}
-
-/** แถบ "ควรรู้": ความต้องการพิเศษ การสื่อสาร และสิ่งที่ไม่ชอบ ของคนไข้ */
-function KnowBar({ patient }: { patient: Patient }) {
-  const shown = patient.profileTags.filter((t) => t.category !== "like");
-  if (!shown.length) return null;
-  const order = { need: 0, communication: 1, dislike: 2, like: 3 } as const;
-  return (
-    <div className="flex items-center gap-1.5 overflow-x-auto thin-scroll border-b border-line bg-panel/60 px-4 py-1.5 text-[11.5px]" aria-label="ควรรู้เกี่ยวกับคนไข้">
-      <span className="shrink-0 font-medium text-faint">ควรรู้</span>
-      {[...shown]
-        .sort((a, b) => order[a.category] - order[b.category])
-        .map((t) => (
-          <span
-            key={t.id}
-            title={`${profileCategoryMeta[t.category].label}${t.note ? ` — ${t.note}` : ""}`}
-            className={cn("shrink-0 rounded-md px-1.5 py-0.5 ring-1 ring-inset", profileCategoryMeta[t.category].tone)}
-          >
-            {t.category === "dislike" ? "ไม่ชอบ: " : ""}
-            {t.label}
-            {t.note && <span className="opacity-70"> · {t.note}</span>}
-          </span>
-        ))}
     </div>
   );
 }
