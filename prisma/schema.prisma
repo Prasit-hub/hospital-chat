@@ -137,6 +137,7 @@ model Organization {
   cases        Case[]
   profileTagDefs ProfileTagDef[]
   settings     Json            @default("{}")
+  agentPresence  AgentPresence[]
 }
 
 /// แผนก / หน่วยงานที่รับเรื่องต่อ
@@ -194,6 +195,22 @@ model User {
   broadcasts        Broadcast[]
   appointments      Appointment[]
   auditLogs         AuditLog[]
+  agentPresence     AgentPresence?
+}
+
+/// สถานะ "เปิด Agent" ของผู้ใช้ (ผูกกับเลขต่อ Yeastar) — 1 แถวต่อผู้ใช้ 1 คน
+model AgentPresence {
+  id        String   @id @default(cuid())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// เลขต่อ (= callee_number ที่ Yeastar ส่งมา)
+  extension String
+  online    Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId, extension, online])
 }
 
 /// เซสชันล็อกอิน — เก็บเฉพาะ hash ของ token (token จริงอยู่ใน cookie)

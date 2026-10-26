@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChartColumn, CornerDownLeft, KeyRound, LogOut, Megaphone, MessagesSquare, Search, Settings, Users } from "lucide-react";
+import { ChartColumn, CornerDownLeft, KeyRound, LogOut, Megaphone, MessagesSquare, Phone, PhoneOff, Search, Settings, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "./ui";
 import { ThemeQuickToggle, ThemeSegment } from "./ThemeToggle";
@@ -56,6 +56,152 @@ function useLive() {
     };
   }, []);
   return { unread, online };
+}
+
+const EXT_KEY = "rc_agent_extension";
+
+/** ปุ่ม "เปิด Agent" บนแถบบน — เฉพาะบทบาทเจ้าหน้าที่ตอบแชท (agent) */
+function AgentPresenceToggle() {
+  const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState<{ extension: string; online: boolean } | null>(null);
+  const [ext, setExt] = useState(() => (typeof window !== "undefined" ? localStorage.getItem(EXT_KEY) ?? "" : ""));
+  const [busy, setBusy] = useState(false);
+  const [confirmTake, setConfirmTake] = useState<string | null>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  const load = () =>
+    fetch("/api/agent-presence")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setStatus(d.mine))
+      .catch(() => {});
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  // ถ้าโดนแย่งเลขต่อจากอุปกรณ์/แท็บอื่น ให้ปิดสถานะในหน้าจอนี้ตามจริง
+  useEffect(() => {
+    const es = new EventSource("/api/events");
+    es.onmessage = (e) => {
+      const d = JSON.parse(e.data);
+      if (d.type === "agent_presence") load();
+    };
+    return () => es.close();
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  async function openAgent(force?: boolean) {
+    setBusy(true);
+    setConfirmTake(null);
+    try {
+      const r = await fetch("/api/agent-presence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ extension: ext.trim(), force }),
+      });
+      const d = await r.json();
+      if (r.status === 409) {
+        setConfirmTake(d.error);
+        return;
+      }
+      if (!r.ok) {
+        alert(d.error ?? "เปิด Agent ไม่สำเร็จ");
+        return;
+      }
+      localStorage.setItem(EXT_KEY, ext.trim());
+      setStatus({ extension: d.extension, online: true });
+      setOpen(false);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function closeAgent() {
+    setBusy(true);
+    try {
+      await fetch("/api/agent-presence", { method: "DELETE" });
+      setStatus((s) => (s ? { ...s, online: false } : s));
+      setOpen(false);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const live = status?.online;
+
+  return (
+    <div className="relative" ref={boxRef}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-[13px] transition-colors sm:px-3",
+          live ? "border-ok/40 bg-ok/10 text-ok" : "border-line text-muted hover:text-ink",
+        )}
+        title={live ? `Agent เปิดอยู่ · เลขต่อ ${status?.extension}` : "ยังไม่เปิด Agent"}
+      >
+        {live ? <Phone size={15} /> : <PhoneOff size={15} />}
+        <span className="hidden sm:inline">{live ? `เลขต่อ ${status?.extension}` : "ยังไม่เปิด Agent"}</span>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-11 z-40 w-64 rounded-xl border border-line bg-panel p-3 shadow-[0_20px_50px_rgb(var(--shade-rgb)/calc(0.5*var(--shade-k)))]">
+          {live ? (
+            <>
+              <div className="mb-2 text-sm">
+                เปิด Agent อยู่ที่เลขต่อ <span className="font-semibold">{status?.extension}</span>
+              </div>
+              <button
+                onClick={closeAgent}
+                disabled={busy}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-hot/40 py-1.5 text-sm text-hot hover:bg-hot/10 disabled:opacity-60"
+              >
+                <PhoneOff size={14} /> ปิด Agent
+              </button>
+            </>
+          ) : confirmTake ? (
+            <>
+              <p className="mb-2 text-xs text-warm">{confirmTake}</p>
+              <div className="flex gap-2">
+                <button onClick={() => setConfirmTake(null)} className="flex-1 rounded-lg border border-line py-1.5 text-sm text-muted">
+                  ยกเลิก
+                </button>
+                <button onClick={() => openAgent(true)} disabled={busy} className="flex-1 rounded-lg bg-brand py-1.5 text-sm text-brand-ink disabled:opacity-60">
+                  แย่งสิทธิ์
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <label className="mb-1 block text-xs text-muted">เลขต่อของคุณ</label>
+              <input
+                autoFocus
+                value={ext}
+                onChange={(e) => setExt(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && ext.trim() && openAgent()}
+                placeholder="เช่น 1200"
+                className="mb-2 w-full rounded-lg border border-line bg-sunken px-2.5 py-1.5 text-sm outline-none focus:border-brand"
+              />
+              <button
+                onClick={() => openAgent()}
+                disabled={busy || !ext.trim()}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-brand py-1.5 text-sm text-brand-ink disabled:opacity-60"
+              >
+                <Phone size={14} /> เปิด Agent
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function Sidebar({ me }: { me: Me }) {
@@ -129,6 +275,8 @@ export function Sidebar({ me }: { me: Me }) {
           <span className="hidden truncate sm:inline">ค้นหาคนไข้ (ชื่อ / HN) หรือไปที่หน้า…</span>
           <kbd className="ml-auto hidden rounded-md border border-line px-1.5 font-sans text-[11px] text-faint sm:inline">⌘K</kbd>
         </button>
+
+        {me.role === "agent" && <AgentPresenceToggle />}
 
         <ThemeQuickToggle className="hidden sm:flex" />
 
