@@ -10,7 +10,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 # --ignore-scripts: ข้าม postinstall (prisma generate) ตรงนี้เพราะยังไม่มี prisma/schema.prisma
-# (ยังไม่ COPY source จนกว่าจะถึง build stage) -- build stage รัน prisma generate เองอยู่แล้วด้านล่าง
+# (ยังไม่ COPY source จนกว่าจะถึง build stage) — build stage รัน prisma generate เองอยู่แล้วด้านล่าง
 RUN npm ci --no-audit --no-fund --ignore-scripts
 
 # 2) build (prisma generate + next build) — ใช้เป็น image สำหรับ migrate/สคริปต์ดูแลระบบด้วย
@@ -62,5 +62,7 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD curl -fsS http://127.0.0.1:3000/api/health || exit 1
-CMD ["sh", "-c", "npx prisma migrate deploy && node .next/standalone/server.js"]
+#    prisma migrate deploy ต้องต่อฐานข้อมูลแบบตรง (ไม่ผ่าน pooler) เพราะใช้ advisory lock ซึ่งพังถ้าผ่าน
+#    pgbouncer แบบ transaction mode (ของ Neon pooler) — ใช้ DIRECT_URL ถ้ามี ไม่งั้น fallback เป็น DATABASE_URL เดิม
+CMD ["sh", "-c", "DATABASE_URL=\"${DIRECT_URL:-$DATABASE_URL}\" npx prisma migrate deploy && node .next/standalone/server.js"]
 
