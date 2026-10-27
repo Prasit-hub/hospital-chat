@@ -103,12 +103,22 @@ export async function ingest(channel: Channel, ev: IncomingEvent) {
   }
 
   // 2) ห้องแชท (1 ห้องต่อ ลูกค้า + ประเภท dm/comment) — ข้อความใหม่จะเปิดห้องที่ปิดไปแล้วอีกครั้ง
+  // เหตุการณ์ 2 อันของสายเดียวกัน (เช่น answered แล้ว ended ตามมาติดๆ) อาจมาถึงพร้อมกัน — upsert() ไม่ atomic
+  // พอทั้งคู่เช็กว่ายังไม่มีห้องพร้อมกัน จึงพยายาม create ซ้อนกันได้ ฝั่งที่แพ้ race จะโดน P2002 ต้อง fallback ไปอ่านห้องที่อีกฝั่งสร้างไว้แทน
   const at = new Date(ev.timestamp || Date.now());
-  const conversation = await prisma.conversation.upsert({
-    where: { contactId_channelId_source: { contactId: contact.id, channelId: channel.id, source: ev.source } },
-    create: { contactId: contact.id, channelId: channel.id, source: ev.source, lastMessageAt: at },
-    update: {},
-  });
+  let conversation;
+  try {
+    conversation = await prisma.conversation.upsert({
+      where: { contactId_channelId_source: { contactId: contact.id, channelId: channel.id, source: ev.source } },
+      create: { contactId: contact.id, channelId: channel.id, source: ev.source, lastMessageAt: at },
+      update: {},
+    });
+  } catch (e) {
+    if (!isUnique(e)) throw e;
+    conversation = await prisma.conversation.findUniqueOrThrow({
+      where: { contactId_channelId_source: { contactId: contact.id, channelId: channel.id, source: ev.source } },
+    });
+  }
 
   // 3) งาน: ข้อความจากคนไข้เข้างานที่เปิดอยู่ หรือเปิดงานใหม่ "รอรับ" (ข้อความที่แอดมินส่งจากแอปแพลตฟอร์มเองผูกกับงานที่เปิดอยู่ถ้ามี)
   const caseId = ev.echo

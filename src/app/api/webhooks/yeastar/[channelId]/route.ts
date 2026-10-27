@@ -6,12 +6,24 @@ import { ingest } from "@/lib/inbox/service";
 
 export const runtime = "nodejs";
 
-// Webhook URL ที่ต้องใส่ในระบบ Yeastar PBX:
-//   https://<โดเมนของคุณ>/api/webhooks/yeastar/<channelId>?token=<token ของช่องทางนี้>
+const NUMERIC_FIELDS = new Set(["duration_sec"]);
+
+/** แปลง query string (?event=answered&call_id=...) ให้เป็น object เดียวกับที่ yeastarAdapter.parse คาดหวัง */
+function bodyFromQuery(url: URL): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of url.searchParams) {
+    if (key === "token") continue; // token ไม่ใช่ฟิลด์ของเหตุการณ์
+    out[key] = NUMERIC_FIELDS.has(key) ? Number(value) : value;
+  }
+  return out;
+}
+
+// Webhook URL ที่ต้องใส่ในระบบ Yeastar PBX (รองรับ 2 แบบ):
+//   1) JSON body:    POST https://<โดเมนของคุณ>/api/webhooks/yeastar/<channelId>?token=<token>   (Content-Type: application/json)
+//   2) Query string: POST หรือ GET https://<โดเมนของคุณ>/api/webhooks/yeastar/<channelId>?token=<token>&event=answered&call_id=...&caller_number=...&callee_number=...&direction=inbound&start_time=...
 // หรือส่ง token มาทาง header: Authorization: Bearer <token>
-export async function POST(req: Request, { params }: { params: Promise<{ channelId: string }> }) {
+async function handleWebhook(req: Request, { params }: { params: Promise<{ channelId: string }> }) {
   const { channelId } = await params;
-  const raw = await req.text();
 
   const channel = await prisma.channel.findUnique({ where: { id: channelId } });
   if (!channel || channel.type !== "phone") return new Response("unknown channel", { status: 404 });
@@ -24,11 +36,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ channel
     return new Response("invalid token", { status: 401 });
   }
 
+  // รับได้ทั้ง JSON body (เดิม) และ query string (เมื่อ Yeastar ส่งค่าทาง URL ล้วนๆ ไม่มี body)
   let body: unknown;
-  try {
-    body = JSON.parse(raw);
-  } catch {
-    return new Response("invalid json", { status: 400 });
+  const hasQueryFields = [...url.searchParams.keys()].some((k) => k !== "token");
+  if (hasQueryFields) {
+    body = bodyFromQuery(url);
+  } else {
+    const raw = req.method === "GET" ? "" : await req.text();
+    if (!raw.trim()) return new Response("missing event data (query string or JSON body)", { status: 400 });
+    try {
+      body = JSON.parse(raw);
+    } catch {
+      return new Response("invalid json", { status: 400 });
+    }
   }
 
   const events = yeastarAdapter.parse(body);
@@ -58,4 +78,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ channel
   });
 
   return Response.json({ ok: true, conversationId: conversation?.id, matched });
+}
+
+export async function POST(req: Request, ctx: { params: Promise<{ channelId: string }> }) {
+  return handleWebhook(req, ctx);
+}
+
+// บาง PBX/HTTP trigger ส่งค่าทาง query string ด้วย GET ล้วนๆ (ไม่มี body) — รองรับไว้ด้วย
+export async function GET(req: Request, ctx: { params: Promise<{ channelId: string }> }) {
+  return handleWebhook(req, ctx);
 }
