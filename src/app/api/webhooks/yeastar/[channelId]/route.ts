@@ -4,6 +4,7 @@ import { credsOf } from "@/lib/channels";
 import { yeastarAdapter, verifyYeastarToken, type YeastarCreds } from "@/lib/channels/yeastar";
 import { ingest } from "@/lib/inbox/service";
 import { maskPhone } from "@/lib/utils";
+import { audit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -64,6 +65,7 @@ async function handleWebhook(req: Request, { params }: { params: Promise<{ chann
       logWarn(`TEST BYPASS: ข้าม token check (ช่องทาง "${channel.name}") เพราะตั้ง YEASTAR_WEBHOOK_TEST_BYPASS=true — ปิด env นี้เมื่อทดสอบเสร็จ`);
     } else {
       logWarn(`ปฏิเสธ 401: token ไม่ถูกต้อง (ช่องทาง "${channel.name}")`);
+      await audit(channel.orgId, null, "yeastar.webhook_rejected", { type: "channel", id: channel.id }, { reason: "invalid_token", reqId, method: req.method });
       return new Response("invalid token", { status: 401 });
     }
   }
@@ -90,7 +92,9 @@ async function handleWebhook(req: Request, { params }: { params: Promise<{ chann
   const b = body as { event?: string; call_id?: string };
   log(`parse แล้ว: event="${b.event ?? "-"}" call_id="${b.call_id ?? "-"}" → ${events.length} เหตุการณ์ (ช่องทาง "${channel.name}")`);
   if (!channel.connected || events.length === 0) {
+    const reason = !channel.connected ? "channel_disabled" : "no_parsable_event";
     logWarn(`ตอบ matched=none: ${!channel.connected ? "ช่องทางถูกปิดใช้งาน" : "parse ไม่ได้เหตุการณ์ (ฟิลด์ไม่ครบ หรือ event ไม่รู้จัก)"}`);
+    await audit(channel.orgId, null, "yeastar.webhook", { type: "channel", id: channel.id }, { outcome: reason, reqId, event: b.event, callId: b.call_id });
     return Response.json({ ok: true, matched: "none" });
   }
 
@@ -107,6 +111,16 @@ async function handleWebhook(req: Request, { params }: { params: Promise<{ chann
 
   log(`ตอบ 200 ล่วงหน้า: เบอร์ ${maskPhone(phone)} matched=${matched} conversationId=${conversation?.id ?? "(ยังไม่มี)"} — กำลังบันทึกข้อความเบื้องหลัง`);
 
+  // บันทึก audit log แบบ sync ก่อนตอบกลับ (ไม่รอผลการบันทึกข้อความจริงใน after() เพราะอาจใช้เวลา) —
+  // เก็บ "ไม่มีข้อความแชท" ตามนโยบาย PDPA มีแค่ event/call_id/เบอร์แบบปิดบังบางส่วน/ผลจับคู่
+  await audit(
+    channel.orgId,
+    null,
+    "yeastar.webhook",
+    { type: "channel", id: channel.id },
+    { outcome: "ok", reqId, event: b.event, callId: b.call_id, callerMasked: maskPhone(phone), matched, conversationId: conversation?.id, testBypass: TEST_BYPASS && hasQueryFields },
+  );
+
   after(async () => {
     for (const ev of events) {
       try {
@@ -114,6 +128,13 @@ async function handleWebhook(req: Request, { params }: { params: Promise<{ chann
         log(`บันทึกสำเร็จ: externalId="${ev.messageExternalId}"`);
       } catch (e) {
         console.error(`[yeastar webhook] [${reqId}] บันทึกล้มเหลว externalId="${ev.messageExternalId}" ingest failed`, e);
+        await audit(
+          channel.orgId,
+          null,
+          "yeastar.webhook_failed",
+          { type: "channel", id: channel.id },
+          { reqId, messageExternalId: ev.messageExternalId, error: e instanceof Error ? e.message : String(e) },
+        ).catch((auditErr) => console.error(`[yeastar webhook] [${reqId}] เขียน AuditLog ไม่สำเร็จด้วย`, auditErr));
       }
     }
   });

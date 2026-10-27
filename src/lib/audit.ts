@@ -32,7 +32,10 @@ export type AuditAction =
   | "auth.login"
   | "auth.login_failed"
   | "auth.provision"
-  | "settings.auth";
+  | "settings.auth"
+  | "yeastar.webhook"
+  | "yeastar.webhook_rejected"
+  | "yeastar.webhook_failed";
 
 export async function audit(
   orgId: string,
